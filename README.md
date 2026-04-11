@@ -27,3 +27,96 @@ This is real-ish data pulled from our systems. It's not perfect — some of it w
 Build something that helps.
 
 Fork this repo, build your solution, and include a short write-up explaining your approach — what you built, why you made the choices you did, and what you'd do differently with more time.
+
+# HVAC Estimator Demo Plan
+
+## Repo Structure
+
+- apps/mobile
+    Expo + Reach Native + TypeScript
+- apps.api
+    FastAPI + Python
+- data 
+    Original JSON data + bundles (common repair templates)
+
+### Backend Foundation
+- FastAPI + Pydantic + SQLite
+- Endpoints:
+    GET /health
+    GET /catalog/equipment
+    GET /catalog/labor-rates
+    GET /catalog/bundles
+- CORS
+- Normalize source inconsistences when loading JSON (base_cost and baseCost)
+
+## SQLite Storage Tables
+
+- customers
+- estimates 
+    includes: 
+        **IDS**: estimate ID, jobID, customerID
+        **Lifecycle**: status, version, createdAt, updatedAt
+        **JSON contents**: labor, equipmentLines, adjustments, totals
+        **Special Notes**
+- job 
+    includes job estimate(s) and customer + who/where/when/status
+
+## CRUD endpoints
+
+- Customers:
+    POST /customers
+    GET /customers?query=
+    GET /customers/{id}
+    PATCH /customers/{id}
+- Jobs:
+    POST /jobs
+    GET /jobs?customerID=
+    GET /jobs/{id}
+    PATCH /estimates/{id}
+
+## Determine Pricing
+
+- Server computes all totals but technician finalizes and confirms everything
+
+Labor: hours chosen (midpoint of min and max)
+Equipment: baseCost + ?
+Adjustments: rush service, extra hours, permits?
+Endpoint: reprice
+
+## Mobile Demo
+
+- Expo + TypeScript + React Navigation + React Native Paper
+- React Hook Form + Zod
+- expo-sqlite for local draft/offline cache
+- **Screens**
+    customer list/create/edit
+    job list/create/edit
+    estimate builder/review
+- **Estimate builder**
+    pick labor from catalog
+    pick hours in
+    add/search equipment
+    special notes
+    call reprice and show totals
+
+## Bundles
+- bundle picker from bundles.json
+- applying a bundle will fill labor, equipment lines, and notes template but allow revision
+
+## Finalization + PDF
+
+- POST /estimates/{id}/finalize
+- GET /estimates/{id}/pdf
+Mobile share through expo-sharing
+
+## AI integration (Gemini 2.5 Flash)
+
+- POST /ai/voice-to-draft
+    audio upload --> transcript --> to fill in JSONs
+- POST /ai/notes-image-to-draft
+    image upload --> to fill in JSONS
+- Validate AI output with Pydantic; retry on invalid output
+- AI never computes totals
+
+
+
