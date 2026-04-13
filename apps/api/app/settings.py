@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -9,9 +11,18 @@ class Settings(BaseSettings):
 
     app_name: str = Field(default="HVAC Estimator Demo API", alias="APP_NAME")
     env: str = Field(default="development", alias="ENV")
+    markup_multiplier: float = Field(default=1.0, alias="MARKUP_MULTIPLIER")
 
     gemini_api_key: str | None = Field(default=None, alias="GEMINI_API_KEY")
     gemini_model: str = Field(default="gemini-2.5-flash", alias="GEMINI_MODEL")
+
+    @property
+    def repo_root(self) -> Path:
+        return Path(__file__).resolve().parents[3]
+
+    @property
+    def data_dir(self) -> Path:
+        return self.repo_root / "data"
 
 
 settings = Settings()

@@ -6,6 +6,10 @@ from pydantic import ValidationError
 
 from app.schemas.ai_drafts import AiDraftResult, EstimateDraftInput, empty_draft_payload
 
+'''
+This module contains the core logic for the AI pipeline, 
+specifically the function to validate the AI-generated draft with one retry.
+'''
 
 def validate_with_one_retry(generator: Callable[[int], dict[str, Any]]) -> AiDraftResult:
     validation_errors: list[str] = []

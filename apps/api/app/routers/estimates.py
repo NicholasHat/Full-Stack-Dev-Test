@@ -3,12 +3,16 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException
 
 from app.schemas.ai_drafts import EstimateDraftInput
-from app.schemas.estimate import EstimateCreate, EstimateRead, EstimateUpdate
+from app.schemas.estimate import EstimateCreate, EstimateRead, EstimateRepriceResponse, EstimateUpdate
 from app.services.estimate_draft_apply import apply_draft_to_estimate
 from app.services.estimate_repository import create_estimate, get_estimate, list_estimates, update_estimate
+from app.services.pricing import reprice_estimate
 
 router = APIRouter(prefix="/estimates", tags=["estimates"])
 
+'''
+This module contains the API endpoints for managing estimates, including creating, reading, updating, and repricing estimates. It also includes the endpoint for applying an AI-generated draft to an existing estimate, which uses the apply_draft_to_estimate function to merge the draft with the existing estimate data.
+'''
 
 @router.post("", response_model=EstimateRead)
 def create_estimate_endpoint(payload: EstimateCreate) -> EstimateRead:
@@ -55,3 +59,26 @@ def apply_draft_endpoint(estimate_id: str, draft: EstimateDraftInput) -> Estimat
     if updated is None:
         raise HTTPException(status_code=404, detail="Estimate not found")
     return updated
+
+
+@router.post("/{estimate_id}/reprice", response_model=EstimateRepriceResponse)
+def reprice_estimate_endpoint(estimate_id: str) -> EstimateRepriceResponse:
+    estimate = get_estimate(estimate_id)
+    if estimate is None:
+        raise HTTPException(status_code=404, detail="Estimate not found")
+    if estimate.status == "finalized":
+        raise HTTPException(status_code=409, detail="Finalized estimate cannot be repriced")
+
+    repriced = reprice_estimate(estimate)
+
+    update_estimate(
+        estimate_id,
+        EstimateUpdate(
+            labor=repriced.labor,
+            equipmentLines=repriced.equipmentLines,
+            adjustments=repriced.adjustments,
+            totals=repriced.totals,
+        ),
+    )
+
+    return repriced

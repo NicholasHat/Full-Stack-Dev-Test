@@ -7,6 +7,9 @@ from uuid import uuid4
 from app.db.session import get_connection
 from app.schemas.estimate import EstimateCreate, EstimateRead, EstimateUpdate
 
+'''
+This module contains functions for interacting with the estimates table in the database.
+'''
 
 def _now_iso() -> str:
     return datetime.now(UTC).isoformat()

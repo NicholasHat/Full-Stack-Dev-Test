@@ -62,6 +62,7 @@ class EstimateUpdate(BaseModel):
     adjustments: list[EstimateAdjustment] | None = None
     specialNotes: str | None = None
     status: str | None = None
+    totals: EstimateTotals | None = None
 
 
 class EstimateRead(EstimateBase):

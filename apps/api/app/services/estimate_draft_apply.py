@@ -3,6 +3,12 @@ from __future__ import annotations
 from app.schemas.ai_drafts import EstimateDraftInput
 from app.schemas.estimate import EstimateAdjustment, EstimateEquipmentLine, EstimateLabor, EstimateRead, EstimateUpdate
 
+'''
+This module contains the logic for applying an EstimateDraftInput to an existing 
+EstimateRead to produce an EstimateUpdate. This is used in the /estimates/{estimate_id}/apply-draft
+endpoint to take the AI-generated draft and apply it to the existing estimate in 
+a way that only updates the fields that were changed in the draft, leaving all other fields intact.
+'''
 
 def apply_draft_to_estimate(current: EstimateRead, draft: EstimateDraftInput) -> EstimateUpdate:
     labor = current.labor

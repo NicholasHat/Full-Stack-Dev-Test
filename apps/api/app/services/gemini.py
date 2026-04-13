@@ -8,6 +8,12 @@ from fastapi import HTTPException
 
 from app.settings import settings
 
+'''
+This module contains functions for interacting with the Gemini AI service for the AI pipelines.
+Speech to text and image to text functions are implemented here, as well as the prompt engineering for 
+converting to EstimateDraftInput JSON.
+'''
+
 try:
     from google import genai
 except Exception:  # pragma: no cover

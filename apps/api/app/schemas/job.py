@@ -5,6 +5,7 @@ from datetime import date, datetime
 from pydantic import BaseModel, ConfigDict
 
 
+
 class JobBase(BaseModel):
     customerId: str | None = None
     address: str | None = None
