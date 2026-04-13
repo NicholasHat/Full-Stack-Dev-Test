@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 from fastapi import APIRouter, File, UploadFile
 
 from app.schemas.ai_drafts import AiDraftResult
@@ -31,7 +33,7 @@ async def notes_image_to_draft(file: UploadFile = File(...)) -> AiDraftResult:
 
     extracted_text_holder = {"value": ""}
 
-    def _generator(_: int) -> dict:
+    def _generator(_: int) -> dict[str, Any]:
         payload, extracted_text = service.draft_from_image(data=data, mime_type=mime_type)
         extracted_text_holder["value"] = extracted_text
         return payload
