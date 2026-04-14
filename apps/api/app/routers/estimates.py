@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Response
 
 from app.schemas.ai_drafts import EstimateDraftInput
 from app.schemas.estimate import EstimateCreate, EstimateRead, EstimateRepriceResponse, EstimateUpdate
@@ -8,6 +8,7 @@ from app.services.customer_repository import get_customer
 from app.services.estimate_draft_apply import apply_draft_to_estimate
 from app.services.estimate_repository import create_estimate, get_estimate, list_estimates, update_estimate
 from app.services.job_repository import get_job
+from app.services.pdf import render_estimate_pdf
 from app.services.pricing import reprice_estimate
 
 router = APIRouter(prefix="/estimates", tags=["estimates"])
@@ -105,3 +106,21 @@ def finalize_estimate_endpoint(estimate_id: str) -> EstimateRead:
     if updated is None:
         raise HTTPException(status_code=404, detail="Estimate not found")
     return updated
+
+
+@router.get("/{estimate_id}/pdf")
+def estimate_pdf_endpoint(estimate_id: str) -> Response:
+    estimate = get_estimate(estimate_id)
+    if estimate is None:
+        raise HTTPException(status_code=404, detail="Estimate not found")
+
+    try:
+        pdf_bytes = render_estimate_pdf(estimate)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'inline; filename="estimate-{estimate.id}.pdf"'},
+    )
