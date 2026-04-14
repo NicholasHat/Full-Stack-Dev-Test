@@ -10,10 +10,9 @@ import { EstimateBuilderScreen } from '../screens/EstimateBuilderScreen';
 import { EstimateReviewScreen } from '../screens/EstimateReviewScreen';
 
 // Define the types for the navigation stack
-
-type RootStackParamList = {
+export type RootStackParamList = {
   Tabs: undefined;
-  CustomerEdit: undefined;
+  CustomerEdit: { customerId?: string } | undefined;
   JobEdit: undefined;
   EstimateBuilder: undefined;
   EstimateReview: undefined;
