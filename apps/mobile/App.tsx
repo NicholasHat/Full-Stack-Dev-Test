@@ -3,12 +3,13 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { PaperProvider } from 'react-native-paper';
 
 import { RootNavigator } from './src/navigation/RootNavigator';
+import { githubPaperTheme } from './src/theme/githubPaperTheme';
 
 export default function App() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <PaperProvider>
+        <PaperProvider theme={githubPaperTheme}>
           <RootNavigator />
         </PaperProvider>
       </SafeAreaProvider>

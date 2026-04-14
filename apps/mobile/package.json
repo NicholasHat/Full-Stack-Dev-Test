@@ -15,9 +15,11 @@
     "@react-navigation/native-stack": "^6.11.0",
     "expo": "~53.0.0",
     "expo-av": "~15.0.2",
+    "expo-file-system": "~18.1.11",
     "expo-image-picker": "~16.0.4",
     "expo-sharing": "~13.0.1",
     "expo-sqlite": "~15.0.6",
+    "nativewind": "^4.1.23",
     "react": "18.3.1",
     "react-hook-form": "^7.54.2",
     "react-native": "0.76.9",
@@ -30,5 +32,6 @@
   "devDependencies": {
     "@types/react": "~18.3.12",
     "typescript": "~5.8.3"
+    ,"tailwindcss": "^3.4.17"
   }
 }

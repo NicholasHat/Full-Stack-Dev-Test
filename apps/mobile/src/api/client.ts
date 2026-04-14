@@ -259,6 +259,11 @@ export const api = {
   aiVoiceToDraft: (file: UploadFileInput) => upload<AiDraftResult>('/ai/voice-to-draft', file),
   aiNotesImageToDraft: (file: UploadFileInput) =>
     upload<AiDraftResult>('/ai/notes-image-to-draft', file),
+  resetDemoData: () =>
+    request<{ customersSeeded: number; jobsCleared: number; estimatesCleared: number }>(
+      '/admin/reset-demo-data',
+      { method: 'POST' }
+    ),
   estimatePdfUrl: (estimateId: string) => `${API_BASE_URL}/estimates/${encodeURIComponent(estimateId)}/pdf`,
   getLaborRates: () => request<LaborRate[]>('/catalog/labor-rates'),
   getEquipment: () => request<EquipmentCatalogItem[]>('/catalog/equipment'),
