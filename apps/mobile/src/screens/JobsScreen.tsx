@@ -36,6 +36,14 @@ export function JobsScreen() {
           <Card.Content>
             <Text>{j.address || 'No address'}</Text>
           </Card.Content>
+          <Card.Actions>
+              <Button
+                mode="text"
+                onPress={() => navigation.navigate('EstimateBuilder', { jobId: j.id, customerId: j.customerId })}
+              >
+                Build Estimate
+              </Button>
+          </Card.Actions>
         </Card>
       ))}
       {items.length === 0 && (
