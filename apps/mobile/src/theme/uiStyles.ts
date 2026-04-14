@@ -1,6 +1,6 @@
 import { StyleSheet } from 'react-native';
 
-export const githubColors = {
+export const appColors = {
   bg: '#0D1117',
   canvas: '#161B22',
   border: '#30363D',
@@ -14,13 +14,13 @@ export const uiStyles = StyleSheet.create({
     gap: 8,
   },
   sectionTitle: {
-    color: githubColors.text,
+    color: appColors.text,
   },
   mutedText: {
-    color: githubColors.muted,
+    color: appColors.muted,
   },
   text: {
-    color: githubColors.text,
+    color: appColors.text,
   },
   chipRow: {
     flexDirection: 'row',
@@ -28,6 +28,6 @@ export const uiStyles = StyleSheet.create({
     gap: 8,
   },
   listRow: {
-    color: githubColors.text,
+    color: appColors.text,
   },
 });

@@ -7,6 +7,8 @@ import * as Sharing from 'expo-sharing';
 
 import { api, Estimate } from '../api/client';
 import { RootStackParamList } from '../navigation/RootNavigator';
+import { screenStyles } from '../theme/screenStyles';
+import { appColors } from '../theme/uiStyles';
 
 // Review estimate details before generating pdf or sharing
 
@@ -114,26 +116,22 @@ export function EstimateReviewScreen() {
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
+    ...screenStyles.container,
     padding: 16,
-    backgroundColor: '#0D1117',
   },
   card: {
+    ...screenStyles.card,
     marginBottom: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#30363D',
-    backgroundColor: '#161B22',
     padding: 16,
   },
   text: {
-    color: '#C9D1D9',
+    color: appColors.text,
   },
   mutedText: {
-    color: '#8B949E',
+    color: appColors.muted,
   },
   successText: {
-    color: '#3FB950',
+    color: appColors.success,
   },
   mb8: {
     marginBottom: 8,

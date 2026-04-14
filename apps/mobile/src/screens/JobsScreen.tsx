@@ -6,6 +6,8 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { api, Job } from '../api/client';
 import { RootStackParamList } from '../navigation/RootNavigator';
+import { screenStyles } from '../theme/screenStyles';
+import { appColors } from '../theme/uiStyles';
 
 // Screen for listing jobs. This is the main screen that users will see when they open the app. 
 // It shows a list of jobs with their status and address.
@@ -65,31 +67,21 @@ export function JobsScreen() {
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-    backgroundColor: '#0D1117',
+    ...screenStyles.container,
   },
   content: {
-    padding: 16,
-    gap: 12,
+    ...screenStyles.content,
   },
   card: {
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#30363D',
-    backgroundColor: '#161B22',
-    padding: 12,
-    gap: 10,
+    ...screenStyles.card,
   },
   listCard: {
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#30363D',
-    backgroundColor: '#161B22',
+    ...screenStyles.listCard,
   },
   mutedText: {
-    color: '#8B949E',
+    color: appColors.muted,
   },
   textRow: {
-    color: '#C9D1D9',
+    color: appColors.text,
   },
 });

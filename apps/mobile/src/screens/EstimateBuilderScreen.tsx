@@ -22,6 +22,8 @@ import { VoiceCapture } from '../components/VoiceCapture';
 import { RootStackParamList } from '../navigation/RootNavigator';
 import { estimateDraftSchema } from '../schema/estimateDraft.zod';
 import { getDraftById, saveDraft, searchDrafts } from '../storage/drafts.sqlite';
+import { screenStyles } from '../theme/screenStyles';
+import { appColors } from '../theme/uiStyles';
 
 // Main screen for building an estimate
 
@@ -532,28 +534,21 @@ export function EstimateBuilderScreen() {
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-    backgroundColor: '#0D1117',
+    ...screenStyles.container,
   },
   content: {
-    padding: 16,
-    gap: 12,
+    ...screenStyles.content,
   },
   card: {
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#30363D',
-    backgroundColor: '#161B22',
-    padding: 12,
-    gap: 10,
+    ...screenStyles.card,
   },
   mutedText: {
-    color: '#8B949E',
+    color: appColors.muted,
   },
   textRow: {
-    color: '#C9D1D9',
+    color: appColors.text,
   },
   successText: {
-    color: '#3FB950',
+    color: appColors.success,
   },
 });
