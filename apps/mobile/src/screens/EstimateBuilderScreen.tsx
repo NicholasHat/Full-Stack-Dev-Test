@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
-import { Button, Divider, HelperText, Text, TextInput } from 'react-native-paper';
+import { Button, Text, TextInput } from 'react-native-paper';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
@@ -14,6 +14,8 @@ import {
   LaborRate,
   UploadFileInput,
 } from '../api/client';
+import { EstimateTotalsCard } from '../components/EstimateTotalsCard';
+import { EstimateStatusCard } from '../components/EstimateStatusCard';
 import { BundlePicker } from '../components/BundlePicker';
 import { EquipmentSearch } from '../components/EquipmentSearch';
 import { LaborPicker } from '../components/LaborPicker';
@@ -48,6 +50,7 @@ export function EstimateBuilderScreen() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [draftSearch, setDraftSearch] = useState('');
+  const [autoSaveNote, setAutoSaveNote] = useState('');
 
   useEffect(() => {
     async function loadCatalogData() {
@@ -77,6 +80,65 @@ export function EstimateBuilderScreen() {
         .map((code) => ({ code })),
     [adjustmentsInput]
   );
+
+  const workingDraftId = useMemo(() => {
+    const estimate = estimateId.trim();
+    if (estimate) {
+      return estimate;
+    }
+
+    const job = jobId.trim();
+    const customer = customerId.trim();
+    if (job || customer) {
+      return `LOCAL-${job || 'job'}-${customer || 'customer'}`;
+    }
+
+    return 'LOCAL-WIP';
+  }, [customerId, estimateId, jobId]);
+
+  useEffect(() => {
+    const hasAnyData =
+      !!jobId.trim() ||
+      !!customerId.trim() ||
+      !!notes.trim() ||
+      !!laborJobType.trim() ||
+      !!laborLevel.trim() ||
+      !!laborHoursChosen.trim() ||
+      equipmentLines.length > 0 ||
+      adjustments.length > 0;
+
+    if (!hasAnyData) {
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      try {
+        const draft = estimateDraftSchema.parse({
+          ...buildCurrentDraft(),
+          equipmentLines,
+          adjustments,
+          missingRequiredFields: [],
+        });
+
+        saveDraft(workingDraftId, JSON.stringify(draft), jobId || undefined, customerId || undefined);
+        setAutoSaveNote(`Auto-saved local draft ${workingDraftId}`);
+      } catch {
+        // Ignore invalid intermediate input during typing.
+      }
+    }, 900);
+
+    return () => clearTimeout(timer);
+  }, [
+    adjustments,
+    customerId,
+    equipmentLines,
+    jobId,
+    laborHoursChosen,
+    laborJobType,
+    laborLevel,
+    notes,
+    workingDraftId,
+  ]);
 
   function buildCurrentDraft(): EstimateDraftInput {
     return {
@@ -294,6 +356,10 @@ export function EstimateBuilderScreen() {
     setEquipmentLines((prev) => [...prev, { equipmentId: line.equipmentId, qty: line.qty }]);
   }
 
+  function onRemoveEquipmentLine(indexToRemove: number) {
+    setEquipmentLines((prev) => prev.filter((_, index) => index !== indexToRemove));
+  }
+
   function onApplyBundle(bundle: Bundle) {
     if (bundle.labor) {
       setLaborJobType(bundle.labor.jobType ?? '');
@@ -329,6 +395,7 @@ export function EstimateBuilderScreen() {
       <View style={styles.card}>
         <Text variant="titleMedium">Estimate Builder</Text>
         <Text style={styles.mutedText}>Build, draft, reprice, and finalize an estimate.</Text>
+        {!!autoSaveNote && <Text style={styles.mutedText}>{autoSaveNote}</Text>}
       </View>
 
       <View style={styles.card}>
@@ -427,10 +494,20 @@ export function EstimateBuilderScreen() {
           </Text>
         ) : (
           equipmentLines.map((line, index) => (
-            <Text key={`${line.equipmentId ?? line.freeText ?? 'line'}-${index}`} variant="bodySmall" style={styles.textRow}>
-              {index + 1}. {line.equipmentId ?? line.freeText ?? 'Unknown item'} x {line.qty}
-            </Text>
+            <View key={`${line.equipmentId ?? line.freeText ?? 'line'}-${index}`} style={styles.equipmentRow}>
+              <Text variant="bodySmall" style={styles.equipmentLabel}>
+                {index + 1}. {line.equipmentId ?? line.freeText ?? 'Unknown item'} x {line.qty}
+              </Text>
+              <Button mode="text" compact onPress={() => onRemoveEquipmentLine(index)}>
+                Remove
+              </Button>
+            </View>
           ))
+        )}
+        {equipmentLines.length > 0 && (
+          <Button mode="outlined" onPress={() => setEquipmentLines([])}>
+            Clear Equipment Lines
+          </Button>
         )}
       </View>
 
@@ -456,6 +533,7 @@ export function EstimateBuilderScreen() {
             if (!estimateId.trim()) {
               setEstimateId(id);
             }
+            setAutoSaveNote(`Saved local draft ${id}`);
             setMessage(`Saved local draft ${id}`);
           } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to save local draft');
@@ -512,22 +590,9 @@ export function EstimateBuilderScreen() {
       </Button>
       </View>
 
-      <View style={styles.card}>
-        <Divider />
-        <Text style={styles.textRow}>Status: {status}</Text>
-        <Text style={styles.textRow}>Message: {message || '-'}</Text>
-        <HelperText type="error" visible={!!error}>
-          {error ?? ''}
-        </HelperText>
-      </View>
+      <EstimateStatusCard status={status} message={message} error={error} />
 
-      <View style={styles.card}>
-        <Text variant="titleSmall">Totals</Text>
-        <Text style={styles.textRow}>Labor: ${totals?.laborTotal?.toFixed(2) ?? '0.00'}</Text>
-        <Text style={styles.textRow}>Equipment: ${totals?.equipmentTotal?.toFixed(2) ?? '0.00'}</Text>
-        <Text style={styles.textRow}>Adjustments: ${totals?.adjustmentsTotal?.toFixed(2) ?? '0.00'}</Text>
-        <Text style={styles.successText}>Grand Total: ${totals?.grandTotal?.toFixed(2) ?? '0.00'}</Text>
-      </View>
+      <EstimateTotalsCard totals={totals} />
     </ScrollView>
   );
 }
@@ -548,7 +613,14 @@ const styles = StyleSheet.create({
   textRow: {
     color: appColors.text,
   },
-  successText: {
-    color: appColors.success,
+  equipmentRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  equipmentLabel: {
+    color: appColors.text,
+    flex: 1,
   },
 });

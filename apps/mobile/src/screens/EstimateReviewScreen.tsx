@@ -6,6 +6,7 @@ import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 
 import { api, Estimate } from '../api/client';
+import { EstimateTotalsCard } from '../components/EstimateTotalsCard';
 import { RootStackParamList } from '../navigation/RootNavigator';
 import { screenStyles } from '../theme/screenStyles';
 import { appColors } from '../theme/uiStyles';
@@ -78,15 +79,7 @@ export function EstimateReviewScreen() {
         <Text style={styles.mutedText}>Version: {estimate?.version ?? '-'}</Text>
       </View>
 
-      <View style={styles.card}>
-        <Text variant="titleSmall" style={[styles.text, styles.mb8]}>
-          Totals
-        </Text>
-        <Text style={styles.text}>Labor: ${estimate?.totals?.laborTotal?.toFixed(2) ?? '0.00'}</Text>
-        <Text style={styles.text}>Equipment: ${estimate?.totals?.equipmentTotal?.toFixed(2) ?? '0.00'}</Text>
-        <Text style={styles.text}>Adjustments: ${estimate?.totals?.adjustmentsTotal?.toFixed(2) ?? '0.00'}</Text>
-        <Text style={[styles.successText, styles.mt8]}>Grand Total: ${estimate?.totals?.grandTotal?.toFixed(2) ?? '0.00'}</Text>
-      </View>
+      <EstimateTotalsCard totals={estimate?.totals} />
 
       <View style={styles.card}>
         <Text variant="titleSmall" style={[styles.text, styles.mb8]}>

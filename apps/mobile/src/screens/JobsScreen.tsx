@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
-import { Button, Card, Text } from 'react-native-paper';
+import { useEffect, useMemo, useState } from 'react';
+import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import { Button, Card, HelperText, Text } from 'react-native-paper';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
@@ -15,32 +15,78 @@ import { appColors } from '../theme/uiStyles';
 export function JobsScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [items, setItems] = useState<Job[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState('all');
 
   async function load() {
-    setItems(await api.listJobs());
+    setBusy(true);
+    setError(null);
+    try {
+      setItems(await api.listJobs());
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load jobs');
+    } finally {
+      setBusy(false);
+    }
   }
 
   useEffect(() => {
     load();
   }, []);
 
+  const statusOptions = useMemo(() => {
+    const unique = [...new Set(items.map((job) => (job.status || 'unknown').trim()).filter(Boolean))];
+    return ['all', ...unique];
+  }, [items]);
+
+  const filteredItems = useMemo(() => {
+    if (statusFilter === 'all') {
+      return items;
+    }
+    return items.filter((job) => (job.status || 'unknown') === statusFilter);
+  }, [items, statusFilter]);
+
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.content}
+      refreshControl={<RefreshControl refreshing={busy} onRefresh={load} />}
+    >
       <View style={styles.card}>
         <Text variant="titleMedium">Jobs</Text>
         <Text style={styles.mutedText}>Track active jobs and open estimate builder.</Text>
       </View>
 
       <View style={styles.card}>
-        <Button mode="contained" onPress={load}>
+        <Button mode="contained" onPress={load} loading={busy} disabled={busy}>
           Refresh Jobs
         </Button>
-        <Button mode="outlined" onPress={() => navigation.navigate('JobEdit')}>
+        <Button mode="outlined" onPress={() => navigation.navigate('JobEdit')} disabled={busy}>
           New Job
         </Button>
+        <HelperText type="error" visible={!!error}>
+          {error ?? ''}
+        </HelperText>
       </View>
 
-      {items.map((j) => (
+      <View style={styles.card}>
+        <Text variant="titleSmall" style={styles.textRow}>Filter by Status</Text>
+        <View style={styles.filterRow}>
+          {statusOptions.map((option) => (
+            <Button
+              key={option}
+              compact
+              mode={statusFilter === option ? 'contained' : 'outlined'}
+              onPress={() => setStatusFilter(option)}
+            >
+              {option}
+            </Button>
+          ))}
+        </View>
+      </View>
+
+      {filteredItems.map((j) => (
         <Card key={j.id} onPress={() => navigation.navigate('JobEdit', { jobId: j.id })} style={styles.listCard}>
           <Card.Title title={j.id} subtitle={j.status} />
           <Card.Content>
@@ -56,9 +102,9 @@ export function JobsScreen() {
           </Card.Actions>
         </Card>
       ))}
-      {items.length === 0 && (
+      {filteredItems.length === 0 && (
         <View style={styles.card}>
-          <Text style={styles.mutedText}>No jobs yet.</Text>
+          <Text style={styles.mutedText}>No jobs match this filter.</Text>
         </View>
       )}
     </ScrollView>
@@ -83,5 +129,10 @@ const styles = StyleSheet.create({
   },
   textRow: {
     color: appColors.text,
+  },
+  filterRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
   },
 });
