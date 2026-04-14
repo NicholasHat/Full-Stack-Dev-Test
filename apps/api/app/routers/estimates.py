@@ -4,8 +4,10 @@ from fastapi import APIRouter, HTTPException
 
 from app.schemas.ai_drafts import EstimateDraftInput
 from app.schemas.estimate import EstimateCreate, EstimateRead, EstimateRepriceResponse, EstimateUpdate
+from app.services.customer_repository import get_customer
 from app.services.estimate_draft_apply import apply_draft_to_estimate
 from app.services.estimate_repository import create_estimate, get_estimate, list_estimates, update_estimate
+from app.services.job_repository import get_job
 from app.services.pricing import reprice_estimate
 
 router = APIRouter(prefix="/estimates", tags=["estimates"])
@@ -16,6 +18,10 @@ This module contains the API endpoints for managing estimates, including creatin
 
 @router.post("", response_model=EstimateRead)
 def create_estimate_endpoint(payload: EstimateCreate) -> EstimateRead:
+    if get_customer(payload.customerId) is None:
+        raise HTTPException(status_code=404, detail="Customer not found")
+    if get_job(payload.jobId) is None:
+        raise HTTPException(status_code=404, detail="Job not found")
     return create_estimate(payload)
 
 
@@ -82,3 +88,20 @@ def reprice_estimate_endpoint(estimate_id: str) -> EstimateRepriceResponse:
     )
 
     return repriced
+
+
+@router.post("/{estimate_id}/finalize", response_model=EstimateRead)
+def finalize_estimate_endpoint(estimate_id: str) -> EstimateRead:
+    estimate = get_estimate(estimate_id)
+    if estimate is None:
+        raise HTTPException(status_code=404, detail="Estimate not found")
+    if estimate.status == "finalized":
+        raise HTTPException(status_code=409, detail="Estimate is already finalized")
+
+    updated = update_estimate(
+        estimate_id,
+        EstimateUpdate(status="finalized", version=estimate.version + 1, totals=estimate.totals),
+    )
+    if updated is None:
+        raise HTTPException(status_code=404, detail="Estimate not found")
+    return updated

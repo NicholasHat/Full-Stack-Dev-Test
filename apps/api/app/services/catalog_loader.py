@@ -4,7 +4,7 @@ import json
 from functools import lru_cache
 from pathlib import Path
 
-from app.schemas.catalog import Equipment, LaborRate
+from app.schemas.catalog import Bundle, Equipment, LaborRate
 from app.settings import settings
 
 '''
@@ -37,3 +37,13 @@ def load_equipment() -> list[Equipment]:
         normalized.append(item)
 
     return [Equipment.model_validate(item) for item in normalized]
+
+
+@lru_cache
+def load_bundles() -> list[Bundle]:
+    bundles_path = settings.data_dir / "bundles.json"
+    if not bundles_path.exists():
+        return []
+
+    raw = _load_json_array(bundles_path)
+    return [Bundle.model_validate(item) for item in raw]

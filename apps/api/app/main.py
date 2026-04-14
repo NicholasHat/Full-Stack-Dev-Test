@@ -5,8 +5,12 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from app.db.init_db import init_db
+from app.routers.admin import router as admin_router
 from app.routers.ai import router as ai_router
+from app.routers.catalog import router as catalog_router
+from app.routers.customers import router as customers_router
 from app.routers.estimates import router as estimates_router
+from app.routers.jobs import router as jobs_router
 from app.settings import settings
 
 @asynccontextmanager
@@ -24,4 +28,8 @@ def health() -> dict[str, str]:
 
 
 app.include_router(ai_router)
+app.include_router(catalog_router)
+app.include_router(customers_router)
+app.include_router(jobs_router)
 app.include_router(estimates_router)
+app.include_router(admin_router)

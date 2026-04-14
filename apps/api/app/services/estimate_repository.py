@@ -126,6 +126,7 @@ def update_estimate(estimate_id: str, patch: EstimateUpdate) -> EstimateRead | N
             """
             UPDATE estimates
             SET status = ?,
+                version = ?,
                 labor_json = ?,
                 equipment_lines_json = ?,
                 adjustments_json = ?,
@@ -136,6 +137,7 @@ def update_estimate(estimate_id: str, patch: EstimateUpdate) -> EstimateRead | N
             """,
             (
                 merged["status"],
+                merged["version"],
                 _serialize(merged.get("labor")),
                 _serialize(merged.get("equipmentLines", [])) or "[]",
                 _serialize(merged.get("adjustments", [])) or "[]",

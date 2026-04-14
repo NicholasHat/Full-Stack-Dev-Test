@@ -57,6 +57,7 @@ class EstimateCreate(EstimateBase):
 
 
 class EstimateUpdate(BaseModel):
+    version: int | None = Field(default=None, ge=1)
     labor: EstimateLabor | None = None
     equipmentLines: list[EstimateEquipmentLine] | None = None
     adjustments: list[EstimateAdjustment] | None = None
