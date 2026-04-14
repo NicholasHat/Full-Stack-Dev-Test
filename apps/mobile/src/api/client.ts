@@ -135,6 +135,12 @@ export type AiDraftResult = {
   extractedText?: string | null;
 };
 
+export type UploadFileInput = {
+  uri: string;
+  name: string;
+  type: string;
+};
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`, {
     headers: { 'Content-Type': 'application/json', ...(init?.headers ?? {}) },
@@ -149,7 +155,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-async function upload<T>(path: string, file: { uri: string; name: string; type: string }): Promise<T> {
+async function upload<T>(path: string, file: UploadFileInput): Promise<T> {
   const formData = new FormData();
   formData.append('file', file as unknown as Blob);
 
@@ -214,7 +220,8 @@ export const api = {
     ),
   finalizeEstimate: (estimateId: string) =>
     request<Estimate>(`/estimates/${encodeURIComponent(estimateId)}/finalize`, { method: 'POST' }),
-  aiNotesImageToDraft: (file: { uri: string; name: string; type: string }) =>
+  aiVoiceToDraft: (file: UploadFileInput) => upload<AiDraftResult>('/ai/voice-to-draft', file),
+  aiNotesImageToDraft: (file: UploadFileInput) =>
     upload<AiDraftResult>('/ai/notes-image-to-draft', file),
   estimatePdfUrl: (estimateId: string) => `${API_BASE_URL}/estimates/${encodeURIComponent(estimateId)}/pdf`,
   getLaborRates: () => request('/catalog/labor-rates'),

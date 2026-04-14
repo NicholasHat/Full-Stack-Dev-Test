@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { ScrollView } from 'react-native';
 import { Button, Divider, HelperText, Text, TextInput } from 'react-native-paper';
-import * as ImagePicker from 'expo-image-picker';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
-import { api, Estimate, EstimateTotals } from '../api/client';
+import { api, Estimate, EstimateDraftInput, EstimateTotals, UploadFileInput } from '../api/client';
+import { NotesPhotoCapture } from '../components/NotesPhotoCapture';
+import { VoiceCapture } from '../components/VoiceCapture';
 import { RootStackParamList } from '../navigation/RootNavigator';
 
 // Main screen for building an estimate
@@ -28,6 +29,17 @@ export function EstimateBuilderScreen() {
     setStatus(estimate.status);
     setTotals(estimate.totals ?? null);
     setNotes(estimate.specialNotes ?? '');
+  }
+
+  async function applyDraft(draft: EstimateDraftInput, successMessage: string) {
+    const updatedEstimate = await api.applyEstimateDraft(estimateId, {
+      ...draft,
+      jobId: draft.jobId ?? (jobId || null),
+      customerId: draft.customerId ?? (customerId || null),
+    });
+
+    syncEstimate(updatedEstimate);
+    setMessage(successMessage);
   }
 
   async function onCreateEstimate() {
@@ -58,7 +70,7 @@ export function EstimateBuilderScreen() {
     }
   }
 
-  async function onApplyAiDraftFromPhoto() {
+  async function onApplyAiDraftFromVoice(file: UploadFileInput) {
     if (!estimateId.trim()) {
       setError('Create an estimate first.');
       return;
@@ -68,39 +80,29 @@ export function EstimateBuilderScreen() {
     setError(null);
     setMessage('');
     try {
-      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!permission.granted) {
-        setError('Photo permission is required.');
-        return;
-      }
-
-      const picked = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'],
-        quality: 0.8,
-      });
-
-      if (picked.canceled || picked.assets.length === 0) {
-        return;
-      }
-
-      const asset = picked.assets[0];
-      const file = {
-        uri: asset.uri,
-        name: asset.fileName ?? `notes-${Date.now()}.jpg`,
-        type: asset.mimeType ?? 'image/jpeg',
-      };
-
-      const aiResult = await api.aiNotesImageToDraft(file);
-      const updatedEstimate = await api.applyEstimateDraft(estimateId, {
-        ...aiResult.draft,
-        jobId: aiResult.draft.jobId ?? (jobId || null),
-        customerId: aiResult.draft.customerId ?? (customerId || null),
-      });
-
-      syncEstimate(updatedEstimate);
-      setMessage('AI draft applied to estimate.');
+      const aiResult = await api.aiVoiceToDraft(file);
+      await applyDraft(aiResult.draft, 'AI voice draft applied to estimate.');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to apply AI draft');
+      setError(err instanceof Error ? err.message : 'Failed to apply AI voice draft');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function onApplyAiDraftFromPhoto(file: UploadFileInput) {
+    if (!estimateId.trim()) {
+      setError('Create an estimate first.');
+      return;
+    }
+
+    setBusy(true);
+    setError(null);
+    setMessage('');
+    try {
+      const aiResult = await api.aiNotesImageToDraft(file);
+      await applyDraft(aiResult.draft, 'AI notes draft applied to estimate.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to apply AI notes draft');
     } finally {
       setBusy(false);
     }
@@ -178,9 +180,8 @@ export function EstimateBuilderScreen() {
       <Button mode="contained" onPress={onCreateEstimate} disabled={busy} loading={busy}>
         Create Estimate
       </Button>
-      <Button mode="outlined" onPress={onApplyAiDraftFromPhoto} disabled={busy} loading={busy}>
-        Apply AI Draft (Notes Photo)
-      </Button>
+      <VoiceCapture disabled={busy || !estimateId.trim()} onFileReady={onApplyAiDraftFromVoice} />
+      <NotesPhotoCapture disabled={busy || !estimateId.trim()} onFileReady={onApplyAiDraftFromPhoto} />
       <Button mode="outlined" onPress={onReprice} disabled={busy} loading={busy}>
         Run Reprice
       </Button>
