@@ -47,6 +47,17 @@ export function searchDrafts(query: string) {
   );
 }
 
+export function listDrafts() {
+  initDraftsDb();
+  return db.getAllSync<StoredEstimateDraftRow>(
+    `
+      SELECT *
+      FROM estimate_drafts
+      ORDER BY updated_at DESC
+    `
+  );
+}
+
 export function getDraftById(id: string) {
   initDraftsDb();
   return db.getFirstSync<StoredEstimateDraftRow>(
@@ -55,6 +66,17 @@ export function getDraftById(id: string) {
       FROM estimate_drafts
       WHERE id = ?
       LIMIT 1
+    `,
+    [id]
+  );
+}
+
+export function deleteDraftById(id: string) {
+  initDraftsDb();
+  db.runSync(
+    `
+      DELETE FROM estimate_drafts
+      WHERE id = ?
     `,
     [id]
   );

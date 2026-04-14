@@ -34,7 +34,7 @@ export function EstimateBuilderScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [jobId, setJobId] = useState(route.params?.jobId ?? '');
   const [customerId, setCustomerId] = useState(route.params?.customerId ?? '');
-  const [estimateId, setEstimateId] = useState('');
+  const [estimateId, setEstimateId] = useState(route.params?.estimateId ?? '');
   const [status, setStatus] = useState<string>('draft');
   const [totals, setTotals] = useState<EstimateTotals | null>(null);
   const [notes, setNotes] = useState('');
@@ -70,6 +70,51 @@ export function EstimateBuilderScreen() {
 
     loadCatalogData();
   }, []);
+
+  useEffect(() => {
+    const routedEstimateId = route.params?.estimateId?.trim();
+    const routedDraftId = route.params?.draftId?.trim();
+
+    async function hydrateFromRoute() {
+      if (routedEstimateId) {
+        setBusy(true);
+        setError(null);
+        try {
+          const estimate = await api.getEstimate(routedEstimateId);
+          setJobId(estimate.jobId);
+          setCustomerId(estimate.customerId);
+          syncEstimate(estimate);
+          setMessage(`Loaded estimate ${estimate.id}`);
+        } catch (err) {
+          setError(err instanceof Error ? err.message : 'Failed to load estimate');
+        } finally {
+          setBusy(false);
+        }
+        return;
+      }
+
+      if (routedDraftId) {
+        setError(null);
+        try {
+          const row = getDraftById(routedDraftId);
+          if (!row) {
+            setError('Requested local draft was not found.');
+            return;
+          }
+          const parsed = estimateDraftSchema.parse(JSON.parse(row.payload_json));
+          setEstimateId(row.id);
+          setJobId(row.job_id ?? '');
+          setCustomerId(row.customer_id ?? '');
+          applyLocalDraftToScreen(parsed);
+          setMessage(`Loaded local draft ${row.id}`);
+        } catch (err) {
+          setError(err instanceof Error ? err.message : 'Failed to load local draft');
+        }
+      }
+    }
+
+    hydrateFromRoute();
+  }, [route.params?.draftId, route.params?.estimateId]);
 
   const adjustments = useMemo(
     () =>

@@ -7,6 +7,7 @@ import { CustomerEditScreen } from '../screens/CustomerEditScreen';
 import { JobsScreen } from '../screens/JobsScreen';
 import { JobEditScreen } from '../screens/JobEditScreen';
 import { EstimateBuilderScreen } from '../screens/EstimateBuilderScreen';
+import { EstimateHistoryScreen } from '../screens/EstimateHistoryScreen';
 import { EstimateReviewScreen } from '../screens/EstimateReviewScreen';
 
 // Define the types for the navigation stack
@@ -14,7 +15,7 @@ export type RootStackParamList = {
   Tabs: undefined;
   CustomerEdit: { customerId?: string } | undefined;
   JobEdit: { jobId?: string } | undefined;
-  EstimateBuilder: { jobId?: string; customerId?: string } | undefined;
+  EstimateBuilder: { jobId?: string; customerId?: string; estimateId?: string; draftId?: string } | undefined;
   EstimateReview: { estimateId: string };
 };
 
@@ -26,6 +27,7 @@ function TabsNavigator() {
     <Tabs.Navigator>
       <Tabs.Screen name="Customers" component={CustomersScreen} />
       <Tabs.Screen name="Jobs" component={JobsScreen} />
+      <Tabs.Screen name="Estimates" component={EstimateHistoryScreen} />
     </Tabs.Navigator>
   );
 }
