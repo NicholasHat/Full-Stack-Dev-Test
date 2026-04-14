@@ -1,0 +1,11 @@
+{
+  "compilerOptions": {
+    "jsx": "react-native",
+    "moduleResolution": "bundler",
+    "target": "ESNext",
+    "module": "preserve",
+    "strict": true,
+    "skipLibCheck": true
+  },
+  "include": ["apps/mobile/**/*.ts", "apps/mobile/**/*.tsx"]
+}
