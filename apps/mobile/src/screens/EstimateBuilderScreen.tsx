@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ScrollView } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import { Button, Divider, HelperText, Text, TextInput } from 'react-native-paper';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -323,8 +323,13 @@ export function EstimateBuilderScreen() {
   }
 
   return (
-    <ScrollView contentContainerStyle={{ padding: 16, gap: 12 }}>
-      <Text variant="titleMedium">Estimate Builder</Text>
+    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      <View style={styles.card}>
+        <Text variant="titleMedium">Estimate Builder</Text>
+        <Text style={styles.mutedText}>Build, draft, reprice, and finalize an estimate.</Text>
+      </View>
+
+      <View style={styles.card}>
       <Button
         mode="outlined"
         onPress={async () => {
@@ -345,6 +350,9 @@ export function EstimateBuilderScreen() {
       >
         Refresh Catalogs
       </Button>
+      </View>
+
+      <View style={styles.card}>
       <TextInput label="Job ID" value={jobId} onChangeText={setJobId} mode="outlined" />
       <TextInput
         label="Customer ID"
@@ -380,7 +388,9 @@ export function EstimateBuilderScreen() {
         mode="outlined"
         placeholder="after_hours, permit_fee"
       />
+      </View>
 
+      <View style={styles.card}>
       <LaborPicker
         laborRates={laborRates}
         selectedJobType={laborJobType}
@@ -398,21 +408,31 @@ export function EstimateBuilderScreen() {
           }
         }}
       />
+      </View>
 
+      <View style={styles.card}>
       <EquipmentSearch equipment={equipmentCatalog} onAdd={onAddEquipmentLine} />
+      </View>
+      <View style={styles.card}>
       <BundlePicker bundles={bundles} onApplyBundle={onApplyBundle} />
+      </View>
 
-      <Text variant="titleSmall">Current Equipment Lines</Text>
-      {equipmentLines.length === 0 ? (
-        <Text variant="bodySmall">No equipment lines added yet.</Text>
-      ) : (
-        equipmentLines.map((line, index) => (
-          <Text key={`${line.equipmentId ?? line.freeText ?? 'line'}-${index}`} variant="bodySmall">
-            {index + 1}. {line.equipmentId ?? line.freeText ?? 'Unknown item'} x {line.qty}
+      <View style={styles.card}>
+        <Text variant="titleSmall">Current Equipment Lines</Text>
+        {equipmentLines.length === 0 ? (
+          <Text variant="bodySmall" style={styles.mutedText}>
+            No equipment lines added yet.
           </Text>
-        ))
-      )}
+        ) : (
+          equipmentLines.map((line, index) => (
+            <Text key={`${line.equipmentId ?? line.freeText ?? 'line'}-${index}`} variant="bodySmall" style={styles.textRow}>
+              {index + 1}. {line.equipmentId ?? line.freeText ?? 'Unknown item'} x {line.qty}
+            </Text>
+          ))
+        )}
+      </View>
 
+      <View style={styles.card}>
       <Button mode="contained" onPress={onCreateEstimate} disabled={busy} loading={busy}>
         Create Estimate
       </Button>
@@ -470,6 +490,9 @@ export function EstimateBuilderScreen() {
       >
         Load Local Draft
       </Button>
+      </View>
+
+      <View style={styles.card}>
       <VoiceCapture disabled={busy || !estimateId.trim()} onFileReady={onApplyAiDraftFromVoice} />
       <NotesPhotoCapture disabled={busy || !estimateId.trim()} onFileReady={onApplyAiDraftFromPhoto} />
       <Button mode="outlined" onPress={onReprice} disabled={busy} loading={busy}>
@@ -485,19 +508,52 @@ export function EstimateBuilderScreen() {
       >
         Review & Share PDF
       </Button>
+      </View>
 
-      <Divider />
-      <Text>Status: {status}</Text>
-      <Text>Message: {message || '-'}</Text>
-      <HelperText type="error" visible={!!error}>
-        {error ?? ''}
-      </HelperText>
+      <View style={styles.card}>
+        <Divider />
+        <Text style={styles.textRow}>Status: {status}</Text>
+        <Text style={styles.textRow}>Message: {message || '-'}</Text>
+        <HelperText type="error" visible={!!error}>
+          {error ?? ''}
+        </HelperText>
+      </View>
 
-      <Text variant="titleSmall">Totals</Text>
-      <Text>Labor: ${totals?.laborTotal?.toFixed(2) ?? '0.00'}</Text>
-      <Text>Equipment: ${totals?.equipmentTotal?.toFixed(2) ?? '0.00'}</Text>
-      <Text>Adjustments: ${totals?.adjustmentsTotal?.toFixed(2) ?? '0.00'}</Text>
-      <Text>Grand Total: ${totals?.grandTotal?.toFixed(2) ?? '0.00'}</Text>
+      <View style={styles.card}>
+        <Text variant="titleSmall">Totals</Text>
+        <Text style={styles.textRow}>Labor: ${totals?.laborTotal?.toFixed(2) ?? '0.00'}</Text>
+        <Text style={styles.textRow}>Equipment: ${totals?.equipmentTotal?.toFixed(2) ?? '0.00'}</Text>
+        <Text style={styles.textRow}>Adjustments: ${totals?.adjustmentsTotal?.toFixed(2) ?? '0.00'}</Text>
+        <Text style={styles.successText}>Grand Total: ${totals?.grandTotal?.toFixed(2) ?? '0.00'}</Text>
+      </View>
     </ScrollView>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#0D1117',
+  },
+  content: {
+    padding: 16,
+    gap: 12,
+  },
+  card: {
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#30363D',
+    backgroundColor: '#161B22',
+    padding: 12,
+    gap: 10,
+  },
+  mutedText: {
+    color: '#8B949E',
+  },
+  textRow: {
+    color: '#C9D1D9',
+  },
+  successText: {
+    color: '#3FB950',
+  },
+});
