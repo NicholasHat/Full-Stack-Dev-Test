@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { Button, Card, HelperText, Text } from 'react-native-paper';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { api, Job } from '../api/client';
@@ -34,6 +34,12 @@ export function JobsScreen() {
   useEffect(() => {
     load();
   }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      load();
+    }, [])
+  );
 
   const statusOptions = useMemo(() => {
     const unique = [...new Set(items.map((job) => (job.status || 'unknown').trim()).filter(Boolean))];

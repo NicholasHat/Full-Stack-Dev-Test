@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Button, Card, Searchbar, Text } from 'react-native-paper';
 
@@ -44,6 +44,12 @@ export function EstimateHistoryScreen() {
   useEffect(() => {
     load();
   }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      load();
+    }, [])
+  );
 
   const statusOptions = useMemo(() => {
     const uniqueStatuses = [...new Set(estimates.map((estimate) => (estimate.status || 'unknown').trim()).filter(Boolean))];
@@ -114,7 +120,7 @@ export function EstimateHistoryScreen() {
     >
       <View style={styles.card}>
         <Text variant="titleMedium">Estimate History</Text>
-        <Text style={styles.mutedText}>Find server estimates and local drafts.</Text>
+        <Text style={styles.mutedText}>Browse server estimates and local drafts.</Text>
       </View>
 
       <View style={styles.card}>
@@ -122,7 +128,7 @@ export function EstimateHistoryScreen() {
         <Button mode="contained" onPress={load} loading={busy} disabled={busy}>
           Refresh
         </Button>
-        <Text variant="bodySmall" style={styles.mutedText}>Estimate Status Filter</Text>
+        <Text variant="bodySmall" style={styles.mutedText}>Filter Estimates by Status</Text>
         <View style={styles.chipRow}>
           {statusOptions.map((status) => (
             <Button
@@ -164,7 +170,7 @@ export function EstimateHistoryScreen() {
               </Card.Content>
               <Card.Actions>
                 <Button mode="text" onPress={() => navigation.navigate('EstimateReview', { estimateId: estimate.id })}>
-                  Review
+                  Open Review
                 </Button>
                 <Button
                   mode="text"
@@ -176,7 +182,7 @@ export function EstimateHistoryScreen() {
                     })
                   }
                 >
-                  Continue
+                  Continue Editing
                 </Button>
                 <Button
                   mode="text"
@@ -188,7 +194,7 @@ export function EstimateHistoryScreen() {
                     })
                   }
                 >
-                  Duplicate
+                  Duplicate as New
                 </Button>
               </Card.Actions>
             </Card>
@@ -228,7 +234,7 @@ export function EstimateHistoryScreen() {
                     })
                   }
                 >
-                  Open Draft
+                  Open in Builder
                 </Button>
                 <Button mode="text" onPress={() => onDeleteDraft(draft.id)}>
                   Delete

@@ -177,6 +177,13 @@ export function EstimateBuilderScreen() {
     return 'LOCAL-WIP';
   }, [customerId, estimateId, jobId]);
 
+  const hasRequiredIdentifiers = useMemo(
+    () => !!jobId.trim() && !!customerId.trim(),
+    [customerId, jobId]
+  );
+
+  const hasServerEstimate = useMemo(() => !!estimateId.trim(), [estimateId]);
+
   useEffect(() => {
     const hasAnyData =
       !!jobId.trim() ||
@@ -475,7 +482,13 @@ export function EstimateBuilderScreen() {
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <View style={styles.card}>
         <Text variant="titleMedium">Estimate Builder</Text>
-        <Text style={styles.mutedText}>Build, draft, reprice, and finalize an estimate.</Text>
+        <Text style={styles.mutedText}>Build a quote, apply AI notes, reprice totals, then finalize.</Text>
+        {!hasRequiredIdentifiers && (
+          <Text style={styles.mutedText}>Step 1: Enter Job ID and Customer ID, then create a server estimate.</Text>
+        )}
+        {!hasServerEstimate && (
+          <Text style={styles.mutedText}>Step 2: Create estimate before AI apply, reprice, and finalize actions.</Text>
+        )}
         {!!autoSaveNote && <Text style={styles.mutedText}>{autoSaveNote}</Text>}
       </View>
 
@@ -515,7 +528,7 @@ export function EstimateBuilderScreen() {
         value={estimateId}
         onChangeText={setEstimateId}
         mode="outlined"
-        placeholder="Auto-filled after create"
+        placeholder="Auto-filled after creating estimate"
       />
       <TextInput
         label="Special Notes"
@@ -525,7 +538,7 @@ export function EstimateBuilderScreen() {
         multiline
       />
       <TextInput
-        label="Find Local Draft"
+        label="Search Local Draft"
         value={draftSearch}
         onChangeText={setDraftSearch}
         mode="outlined"
@@ -593,11 +606,12 @@ export function EstimateBuilderScreen() {
       </View>
 
       <View style={styles.card}>
-      <Button mode="contained" onPress={onCreateEstimate} disabled={busy} loading={busy}>
-        Create Estimate
+      <Button mode="contained" onPress={onCreateEstimate} disabled={busy || !hasRequiredIdentifiers} loading={busy}>
+        Create Server Estimate
       </Button>
       <Button
         mode="outlined"
+        disabled={busy}
         onPress={() => {
           setError(null);
           setMessage('');
@@ -621,10 +635,11 @@ export function EstimateBuilderScreen() {
           }
         }}
       >
-        Save Local Draft
+        Save Draft Locally
       </Button>
       <Button
         mode="outlined"
+        disabled={busy}
         onPress={() => {
           setError(null);
           setMessage('');
@@ -649,22 +664,22 @@ export function EstimateBuilderScreen() {
           }
         }}
       >
-        Load Local Draft
+        Load Saved Draft
       </Button>
       </View>
 
       <View style={styles.card}>
-      <VoiceCapture disabled={busy || !estimateId.trim()} onFileReady={onApplyAiDraftFromVoice} />
-      <NotesPhotoCapture disabled={busy || !estimateId.trim()} onFileReady={onApplyAiDraftFromPhoto} />
-      <Button mode="outlined" onPress={onReprice} disabled={busy} loading={busy}>
-        Run Reprice
+      <VoiceCapture disabled={busy || !hasServerEstimate} onFileReady={onApplyAiDraftFromVoice} />
+      <NotesPhotoCapture disabled={busy || !hasServerEstimate} onFileReady={onApplyAiDraftFromPhoto} />
+      <Button mode="outlined" onPress={onReprice} disabled={busy || !hasServerEstimate} loading={busy}>
+        Recalculate Totals
       </Button>
-      <Button mode="contained-tonal" onPress={onFinalize} disabled={busy} loading={busy}>
-        Finalize
+      <Button mode="contained-tonal" onPress={onFinalize} disabled={busy || !hasServerEstimate} loading={busy}>
+        Finalize Estimate
       </Button>
       <Button
         mode="text"
-        disabled={!estimateId.trim()}
+        disabled={!hasServerEstimate}
         onPress={() => navigation.navigate('EstimateReview', { estimateId })}
       >
         Review & Share PDF

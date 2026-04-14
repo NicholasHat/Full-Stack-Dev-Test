@@ -73,14 +73,14 @@ export function VoiceCapture({ disabled = false, onFileReady }: VoiceCaptureProp
 
   return (
     <View style={uiStyles.section}>
-      <Text variant="titleSmall" style={uiStyles.sectionTitle}>Voice Capture</Text>
+      <Text variant="titleSmall" style={uiStyles.sectionTitle}>Voice Notes</Text>
       {!recording ? (
         <Button mode="contained-tonal" onPress={startRecording} disabled={disabled || busy} loading={busy}>
-          Start Recording
+          Start Voice Recording
         </Button>
       ) : (
         <Button mode="contained" onPress={stopRecording} disabled={disabled || busy} loading={busy}>
-          Stop & Apply AI Draft
+          Stop Recording & Apply Draft
         </Button>
       )}
       <HelperText type="error" visible={!!error}>

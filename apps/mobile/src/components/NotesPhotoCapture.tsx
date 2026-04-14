@@ -50,9 +50,9 @@ export function NotesPhotoCapture({ disabled = false, onFileReady }: NotesPhotoC
 
   return (
     <View style={uiStyles.section}>
-      <Text variant="titleSmall" style={uiStyles.sectionTitle}>Notes Photo</Text>
+      <Text variant="titleSmall" style={uiStyles.sectionTitle}>Photo Notes</Text>
       <Button mode="contained-tonal" onPress={capturePhoto} disabled={disabled || busy} loading={busy}>
-        Take Photo & Apply AI Draft
+        Capture Photo & Apply Draft
       </Button>
       <HelperText type="error" visible={!!error}>
         {error ?? ''}
