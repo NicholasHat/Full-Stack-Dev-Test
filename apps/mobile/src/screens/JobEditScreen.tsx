@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ScrollView } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import { Button, HelperText, Text, TextInput } from 'react-native-paper';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -88,37 +88,68 @@ export function JobEditScreen() {
   }
 
   return (
-    <ScrollView contentContainerStyle={{ padding: 16, gap: 12 }}>
-      <Text variant="titleMedium">{title}</Text>
-      <HelperText type="error" visible={!!error}>
-        {error ?? ''}
-      </HelperText>
-      <TextInput label="Customer ID" value={customerId} onChangeText={setCustomerId} mode="outlined" />
-      <TextInput label="Address" value={address} onChangeText={setAddress} mode="outlined" />
-      <TextInput
-        label="Scheduled Date"
-        value={scheduledDate}
-        onChangeText={setScheduledDate}
-        mode="outlined"
-        placeholder="YYYY-MM-DD"
-      />
-      <TextInput
-        label="Status"
-        value={status}
-        onChangeText={setStatus}
-        mode="outlined"
-        placeholder="draft"
-      />
-      <TextInput
-        label="Special Notes"
-        value={specialNotes}
-        onChangeText={setSpecialNotes}
-        mode="outlined"
-        multiline
-      />
-      <Button mode="contained" onPress={onSave} loading={saving || loading} disabled={saving || loading}>
-        Save Job
-      </Button>
+    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      <View style={styles.card}>
+        <Text variant="titleMedium">{title}</Text>
+        <Text style={styles.mutedText}>Job scheduling and context details.</Text>
+      </View>
+
+      <View style={styles.card}>
+        <HelperText type="error" visible={!!error}>
+          {error ?? ''}
+        </HelperText>
+        <TextInput label="Customer ID" value={customerId} onChangeText={setCustomerId} mode="outlined" />
+        <TextInput label="Address" value={address} onChangeText={setAddress} mode="outlined" />
+        <TextInput
+          label="Scheduled Date"
+          value={scheduledDate}
+          onChangeText={setScheduledDate}
+          mode="outlined"
+          placeholder="YYYY-MM-DD"
+        />
+        <TextInput
+          label="Status"
+          value={status}
+          onChangeText={setStatus}
+          mode="outlined"
+          placeholder="draft"
+        />
+        <TextInput
+          label="Special Notes"
+          value={specialNotes}
+          onChangeText={setSpecialNotes}
+          mode="outlined"
+          multiline
+        />
+      </View>
+
+      <View style={styles.card}>
+        <Button mode="contained" onPress={onSave} loading={saving || loading} disabled={saving || loading}>
+          Save Job
+        </Button>
+      </View>
     </ScrollView>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#0D1117',
+  },
+  content: {
+    padding: 16,
+    gap: 12,
+  },
+  card: {
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#30363D',
+    backgroundColor: '#161B22',
+    padding: 12,
+    gap: 10,
+  },
+  mutedText: {
+    color: '#8B949E',
+  },
+});

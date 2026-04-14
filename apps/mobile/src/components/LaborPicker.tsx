@@ -2,6 +2,7 @@ import { View } from 'react-native';
 import { Button, Text, TextInput } from 'react-native-paper';
 
 import { LaborRate } from '../api/client';
+import { uiStyles } from '../theme/uiStyles';
 
 type LaborPickerProps = {
   laborRates: LaborRate[];
@@ -29,15 +30,15 @@ export function LaborPicker({
   );
 
   return (
-    <View style={{ gap: 8 }}>
-      <Text variant="titleSmall">Labor</Text>
+    <View style={uiStyles.section}>
+      <Text variant="titleSmall" style={uiStyles.sectionTitle}>Labor</Text>
       <TextInput
         label="Job Type"
         value={selectedJobType}
         onChangeText={(value) => onChange({ jobType: value, level: '' })}
         mode="outlined"
       />
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+      <View style={uiStyles.chipRow}>
         {jobTypes.map((type) => (
           <Button key={type} mode={selectedJobType === type ? 'contained' : 'outlined'} onPress={() => onChange({ jobType: type, level: '' })}>
             {type}
@@ -51,7 +52,7 @@ export function LaborPicker({
         onChangeText={(value) => onChange({ level: value })}
         mode="outlined"
       />
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+      <View style={uiStyles.chipRow}>
         {levels.map((level) => (
           <Button key={level} mode={selectedLevel === level ? 'contained' : 'outlined'} onPress={() => onChange({ level })}>
             {level}
@@ -67,7 +68,7 @@ export function LaborPicker({
         keyboardType="decimal-pad"
       />
       {selectedRate && (
-        <Text variant="bodySmall">
+        <Text variant="bodySmall" style={uiStyles.mutedText}>
           Suggested range: {selectedRate.estimatedHours.min} - {selectedRate.estimatedHours.max} hours @ ${selectedRate.hourlyRate}/hr
         </Text>
       )}

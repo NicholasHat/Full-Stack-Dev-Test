@@ -4,6 +4,7 @@ import { Audio } from 'expo-av';
 import { Button, HelperText, Text } from 'react-native-paper';
 
 import { UploadFileInput } from '../api/client';
+import { uiStyles } from '../theme/uiStyles';
 
 type VoiceCaptureProps = {
   disabled?: boolean;
@@ -71,8 +72,8 @@ export function VoiceCapture({ disabled = false, onFileReady }: VoiceCaptureProp
   }
 
   return (
-    <View style={{ gap: 8 }}>
-      <Text variant="titleSmall">Voice Capture</Text>
+    <View style={uiStyles.section}>
+      <Text variant="titleSmall" style={uiStyles.sectionTitle}>Voice Capture</Text>
       {!recording ? (
         <Button mode="contained-tonal" onPress={startRecording} disabled={disabled || busy} loading={busy}>
           Start Recording

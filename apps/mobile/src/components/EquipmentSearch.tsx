@@ -3,6 +3,7 @@ import { View } from 'react-native';
 import { Button, Searchbar, Text, TextInput } from 'react-native-paper';
 
 import { EquipmentCatalogItem } from '../api/client';
+import { uiStyles } from '../theme/uiStyles';
 
 type EquipmentSearchProps = {
   equipment: EquipmentCatalogItem[];
@@ -32,11 +33,11 @@ export function EquipmentSearch({ equipment, onAdd }: EquipmentSearchProps) {
   const parsedQty = Number(qty);
 
   return (
-    <View style={{ gap: 8 }}>
-      <Text variant="titleSmall">Equipment</Text>
+    <View style={uiStyles.section}>
+      <Text variant="titleSmall" style={uiStyles.sectionTitle}>Equipment</Text>
       <Searchbar placeholder="Search equipment" value={query} onChangeText={setQuery} />
       <TextInput label="Qty" value={qty} onChangeText={setQty} mode="outlined" keyboardType="numeric" />
-      <View style={{ gap: 8 }}>
+      <View style={uiStyles.section}>
         {filtered.map((item) => (
           <Button
             key={item.id}

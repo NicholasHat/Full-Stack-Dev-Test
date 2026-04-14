@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ScrollView } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import { Button, HelperText, Text, TextInput } from 'react-native-paper';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -88,58 +88,89 @@ export function CustomerEditScreen() {
   }
 
   return (
-    <ScrollView contentContainerStyle={{ padding: 16, gap: 12 }}>
-      <Text variant="titleMedium">{title}</Text>
-      <HelperText type="error" visible={!!error}>
-        {error ?? ''}
-      </HelperText>
-      <TextInput label="Name" value={name} onChangeText={setName} mode="outlined" />
-      <TextInput label="Address" value={address} onChangeText={setAddress} mode="outlined" />
-      <TextInput
-        label="Phone"
-        value={phone}
-        onChangeText={setPhone}
-        mode="outlined"
-        keyboardType="phone-pad"
-      />
-      <TextInput
-        label="Property Type"
-        value={propertyType}
-        onChangeText={setPropertyType}
-        mode="outlined"
-        placeholder="residential or commercial"
-      />
-      <TextInput
-        label="Square Footage"
-        value={squareFootage}
-        onChangeText={setSquareFootage}
-        mode="outlined"
-        keyboardType="numeric"
-      />
-      <TextInput
-        label="System Type"
-        value={systemType}
-        onChangeText={setSystemType}
-        mode="outlined"
-        placeholder="Central AC + Gas Furnace"
-      />
-      <TextInput
-        label="System Age (years)"
-        value={systemAge}
-        onChangeText={setSystemAge}
-        mode="outlined"
-        keyboardType="numeric"
-      />
-      <TextInput
-        label="Last Service Date"
-        value={lastServiceDate}
-        onChangeText={setLastServiceDate}
-        mode="outlined"
-        placeholder="YYYY-MM-DD"
-      />
-      <Button mode="contained" onPress={onSave} loading={saving || loading} disabled={saving || loading}>
-        Save Customer
-      </Button>
+    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      <View style={styles.card}>
+        <Text variant="titleMedium">{title}</Text>
+        <Text style={styles.mutedText}>Customer profile and system details.</Text>
+      </View>
+
+      <View style={styles.card}>
+        <HelperText type="error" visible={!!error}>
+          {error ?? ''}
+        </HelperText>
+        <TextInput label="Name" value={name} onChangeText={setName} mode="outlined" />
+        <TextInput label="Address" value={address} onChangeText={setAddress} mode="outlined" />
+        <TextInput
+          label="Phone"
+          value={phone}
+          onChangeText={setPhone}
+          mode="outlined"
+          keyboardType="phone-pad"
+        />
+        <TextInput
+          label="Property Type"
+          value={propertyType}
+          onChangeText={setPropertyType}
+          mode="outlined"
+          placeholder="residential or commercial"
+        />
+        <TextInput
+          label="Square Footage"
+          value={squareFootage}
+          onChangeText={setSquareFootage}
+          mode="outlined"
+          keyboardType="numeric"
+        />
+        <TextInput
+          label="System Type"
+          value={systemType}
+          onChangeText={setSystemType}
+          mode="outlined"
+          placeholder="Central AC + Gas Furnace"
+        />
+        <TextInput
+          label="System Age (years)"
+          value={systemAge}
+          onChangeText={setSystemAge}
+          mode="outlined"
+          keyboardType="numeric"
+        />
+        <TextInput
+          label="Last Service Date"
+          value={lastServiceDate}
+          onChangeText={setLastServiceDate}
+          mode="outlined"
+          placeholder="YYYY-MM-DD"
+        />
+      </View>
+
+      <View style={styles.card}>
+        <Button mode="contained" onPress={onSave} loading={saving || loading} disabled={saving || loading}>
+          Save Customer
+        </Button>
+      </View>
     </ScrollView>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#0D1117',
+  },
+  content: {
+    padding: 16,
+    gap: 12,
+  },
+  card: {
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#30363D',
+    backgroundColor: '#161B22',
+    padding: 12,
+    gap: 10,
+  },
+  mutedText: {
+    color: '#8B949E',
+  },
+});

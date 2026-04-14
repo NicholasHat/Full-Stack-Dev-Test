@@ -4,6 +4,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { Button, HelperText, Text } from 'react-native-paper';
 
 import { UploadFileInput } from '../api/client';
+import { uiStyles } from '../theme/uiStyles';
 
 type NotesPhotoCaptureProps = {
   disabled?: boolean;
@@ -48,8 +49,8 @@ export function NotesPhotoCapture({ disabled = false, onFileReady }: NotesPhotoC
   }
 
   return (
-    <View style={{ gap: 8 }}>
-      <Text variant="titleSmall">Notes Photo</Text>
+    <View style={uiStyles.section}>
+      <Text variant="titleSmall" style={uiStyles.sectionTitle}>Notes Photo</Text>
       <Button mode="contained-tonal" onPress={capturePhoto} disabled={disabled || busy} loading={busy}>
         Take Photo & Apply AI Draft
       </Button>
