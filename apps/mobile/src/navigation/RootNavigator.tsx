@@ -15,7 +15,7 @@ export type RootStackParamList = {
   CustomerEdit: { customerId?: string } | undefined;
   JobEdit: { jobId?: string } | undefined;
   EstimateBuilder: { jobId?: string; customerId?: string } | undefined;
-  EstimateReview: undefined;
+  EstimateReview: { estimateId: string };
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();

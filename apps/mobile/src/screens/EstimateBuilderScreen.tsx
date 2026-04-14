@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { ScrollView } from 'react-native';
 import { Button, Divider, HelperText, Text, TextInput } from 'react-native-paper';
 import * as ImagePicker from 'expo-image-picker';
-import { RouteProp, useRoute } from '@react-navigation/native';
+import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { api, Estimate, EstimateTotals } from '../api/client';
 import { RootStackParamList } from '../navigation/RootNavigator';
@@ -11,6 +12,7 @@ import { RootStackParamList } from '../navigation/RootNavigator';
 
 export function EstimateBuilderScreen() {
   const route = useRoute<RouteProp<RootStackParamList, 'EstimateBuilder'>>();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [jobId, setJobId] = useState(route.params?.jobId ?? '');
   const [customerId, setCustomerId] = useState(route.params?.customerId ?? '');
   const [estimateId, setEstimateId] = useState('');
@@ -184,6 +186,13 @@ export function EstimateBuilderScreen() {
       </Button>
       <Button mode="contained-tonal" onPress={onFinalize} disabled={busy} loading={busy}>
         Finalize
+      </Button>
+      <Button
+        mode="text"
+        disabled={!estimateId.trim()}
+        onPress={() => navigation.navigate('EstimateReview', { estimateId })}
+      >
+        Review & Share PDF
       </Button>
 
       <Divider />
