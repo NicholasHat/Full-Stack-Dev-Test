@@ -81,6 +81,42 @@ export type EstimateTotals = {
   grandTotal: number;
 };
 
+export type LaborRate = {
+  jobType: string;
+  level: string;
+  hourlyRate: number;
+  estimatedHours: {
+    min: number;
+    max: number;
+  };
+};
+
+export type EquipmentCatalogItem = {
+  id: string;
+  name: string;
+  category: string;
+  brand: string;
+  modelNumber: string;
+  baseCost: number;
+};
+
+export type Bundle = {
+  id: string;
+  name: string;
+  description?: string | null;
+  labor?: {
+    jobType?: string | null;
+    level?: string | null;
+    hoursChosen?: number | null;
+  } | null;
+  equipmentLines: Array<{
+    equipmentId?: string | null;
+    qty: number;
+  }>;
+  adjustments: Array<{ code: string }>;
+  notesTemplate?: string | null;
+};
+
 export type Estimate = {
   id: string;
   jobId: string;
@@ -224,6 +260,7 @@ export const api = {
   aiNotesImageToDraft: (file: UploadFileInput) =>
     upload<AiDraftResult>('/ai/notes-image-to-draft', file),
   estimatePdfUrl: (estimateId: string) => `${API_BASE_URL}/estimates/${encodeURIComponent(estimateId)}/pdf`,
-  getLaborRates: () => request('/catalog/labor-rates'),
-  getEquipment: () => request('/catalog/equipment'),
+  getLaborRates: () => request<LaborRate[]>('/catalog/labor-rates'),
+  getEquipment: () => request<EquipmentCatalogItem[]>('/catalog/equipment'),
+  getBundles: () => request<Bundle[]>('/catalog/bundles'),
 };

@@ -1,13 +1,27 @@
 import { View } from 'react-native';
 import { Button, Text } from 'react-native-paper';
 
-// Component for picking bundles
+import { Bundle } from '../api/client';
 
-export function BundlePicker() {
+type BundlePickerProps = {
+  bundles: Bundle[];
+  onApplyBundle: (bundle: Bundle) => void;
+};
+
+// Component for picking bundles
+export function BundlePicker({ bundles, onApplyBundle }: BundlePickerProps) {
   return (
     <View style={{ gap: 8 }}>
       <Text variant="titleSmall">Bundles</Text>
-      <Button mode="outlined">Add Bundle (coming soon)</Button>
+      {bundles.length === 0 ? (
+        <Text variant="bodySmall">No bundles available yet.</Text>
+      ) : (
+        bundles.map((bundle) => (
+          <Button key={bundle.id} mode="outlined" onPress={() => onApplyBundle(bundle)}>
+            Add Bundle: {bundle.name}
+          </Button>
+        ))
+      )}
     </View>
   );
 }

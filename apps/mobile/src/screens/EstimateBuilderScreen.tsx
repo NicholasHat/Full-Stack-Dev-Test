@@ -1,10 +1,22 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ScrollView } from 'react-native';
 import { Button, Divider, HelperText, Text, TextInput } from 'react-native-paper';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
-import { api, Estimate, EstimateDraftInput, EstimateTotals, UploadFileInput } from '../api/client';
+import {
+  api,
+  Bundle,
+  EquipmentCatalogItem,
+  Estimate,
+  EstimateDraftInput,
+  EstimateTotals,
+  LaborRate,
+  UploadFileInput,
+} from '../api/client';
+import { BundlePicker } from '../components/BundlePicker';
+import { EquipmentSearch } from '../components/EquipmentSearch';
+import { LaborPicker } from '../components/LaborPicker';
 import { NotesPhotoCapture } from '../components/NotesPhotoCapture';
 import { VoiceCapture } from '../components/VoiceCapture';
 import { RootStackParamList } from '../navigation/RootNavigator';
@@ -20,15 +32,85 @@ export function EstimateBuilderScreen() {
   const [status, setStatus] = useState<string>('draft');
   const [totals, setTotals] = useState<EstimateTotals | null>(null);
   const [notes, setNotes] = useState('');
+  const [laborRates, setLaborRates] = useState<LaborRate[]>([]);
+  const [equipmentCatalog, setEquipmentCatalog] = useState<EquipmentCatalogItem[]>([]);
+  const [bundles, setBundles] = useState<Bundle[]>([]);
+  const [laborJobType, setLaborJobType] = useState('');
+  const [laborLevel, setLaborLevel] = useState('');
+  const [laborHoursChosen, setLaborHoursChosen] = useState('');
+  const [equipmentLines, setEquipmentLines] = useState<Array<{ equipmentId?: string | null; freeText?: string | null; qty: number }>>([]);
+  const [adjustmentsInput, setAdjustmentsInput] = useState('');
   const [message, setMessage] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    async function loadCatalogData() {
+      try {
+        const [rates, equipment, bundleItems] = await Promise.all([
+          api.getLaborRates(),
+          api.getEquipment(),
+          api.getBundles(),
+        ]);
+        setLaborRates(rates);
+        setEquipmentCatalog(equipment);
+        setBundles(bundleItems);
+      } catch {
+        // Keep UI usable even if catalog fetch fails initially.
+      }
+    }
+
+    loadCatalogData();
+  }, []);
+
+  const adjustments = useMemo(
+    () =>
+      adjustmentsInput
+        .split(',')
+        .map((x) => x.trim())
+        .filter(Boolean)
+        .map((code) => ({ code })),
+    [adjustmentsInput]
+  );
+
+  function buildCurrentDraft(): EstimateDraftInput {
+    return {
+      jobId: jobId || null,
+      customerId: customerId || null,
+      labor:
+        laborJobType || laborLevel || laborHoursChosen
+          ? {
+              jobType: laborJobType || null,
+              level: laborLevel || null,
+              hoursChosen: laborHoursChosen ? Number(laborHoursChosen) : null,
+            }
+          : undefined,
+      equipmentLines,
+      adjustments,
+      specialNotes: notes || null,
+    };
+  }
 
   function syncEstimate(estimate: Estimate) {
     setEstimateId(estimate.id);
     setStatus(estimate.status);
     setTotals(estimate.totals ?? null);
     setNotes(estimate.specialNotes ?? '');
+    setLaborJobType(estimate.labor?.jobType ?? '');
+    setLaborLevel(estimate.labor?.level ?? '');
+    setLaborHoursChosen(
+      estimate.labor?.hoursChosen === undefined || estimate.labor?.hoursChosen === null
+        ? ''
+        : String(estimate.labor.hoursChosen)
+    );
+    setEquipmentLines(
+      estimate.equipmentLines.map((line) => ({
+        equipmentId: line.equipmentId ?? null,
+        freeText: line.freeText ?? null,
+        qty: line.qty,
+      }))
+    );
+    setAdjustmentsInput(estimate.adjustments.map((adj) => adj.code).join(', '));
   }
 
   async function applyDraft(draft: EstimateDraftInput, successMessage: string) {
@@ -57,8 +139,16 @@ export function EstimateBuilderScreen() {
         customerId: customerId.trim(),
         status: 'draft',
         version: 1,
-        equipmentLines: [],
-        adjustments: [],
+        labor:
+          laborJobType || laborLevel || laborHoursChosen
+            ? {
+                jobType: laborJobType || null,
+                level: laborLevel || null,
+                hoursChosen: laborHoursChosen ? Number(laborHoursChosen) : null,
+              }
+            : null,
+        equipmentLines,
+        adjustments,
         specialNotes: notes || null,
       });
       syncEstimate(estimate);
@@ -118,9 +208,7 @@ export function EstimateBuilderScreen() {
     setError(null);
     setMessage('');
     try {
-      await api.applyEstimateDraft(estimateId, {
-        specialNotes: notes || null,
-      });
+      await api.applyEstimateDraft(estimateId, buildCurrentDraft());
 
       const repriced = await api.repriceEstimate(estimateId);
       setTotals(repriced.totals);
@@ -142,6 +230,8 @@ export function EstimateBuilderScreen() {
     setError(null);
     setMessage('');
     try {
+      await api.applyEstimateDraft(estimateId, buildCurrentDraft());
+      await api.repriceEstimate(estimateId);
       const finalized = await api.finalizeEstimate(estimateId);
       syncEstimate(finalized);
       setMessage(`Finalized estimate ${finalized.id}`);
@@ -152,9 +242,63 @@ export function EstimateBuilderScreen() {
     }
   }
 
+  function onAddEquipmentLine(line: { equipmentId: string; qty: number }) {
+    setEquipmentLines((prev) => [...prev, { equipmentId: line.equipmentId, qty: line.qty }]);
+  }
+
+  function onApplyBundle(bundle: Bundle) {
+    if (bundle.labor) {
+      setLaborJobType(bundle.labor.jobType ?? '');
+      setLaborLevel(bundle.labor.level ?? '');
+      setLaborHoursChosen(bundle.labor.hoursChosen == null ? '' : String(bundle.labor.hoursChosen));
+    }
+
+    if (bundle.equipmentLines.length > 0) {
+      setEquipmentLines((prev) => [
+        ...prev,
+        ...bundle.equipmentLines.map((line) => ({ equipmentId: line.equipmentId ?? null, qty: line.qty })),
+      ]);
+    }
+
+    if (bundle.adjustments.length > 0) {
+      const existing = adjustmentsInput
+        .split(',')
+        .map((x) => x.trim())
+        .filter(Boolean);
+      const merged = [...new Set([...existing, ...bundle.adjustments.map((a) => a.code)])];
+      setAdjustmentsInput(merged.join(', '));
+    }
+
+    if (bundle.notesTemplate) {
+      setNotes((prev) => (prev ? `${prev}\n${bundle.notesTemplate}` : bundle.notesTemplate || ''));
+    }
+
+    setMessage(`Applied bundle: ${bundle.name}`);
+  }
+
   return (
     <ScrollView contentContainerStyle={{ padding: 16, gap: 12 }}>
       <Text variant="titleMedium">Estimate Builder</Text>
+      <Button
+        mode="outlined"
+        onPress={async () => {
+          try {
+            const [rates, equipment, bundleItems] = await Promise.all([
+              api.getLaborRates(),
+              api.getEquipment(),
+              api.getBundles(),
+            ]);
+            setLaborRates(rates);
+            setEquipmentCatalog(equipment);
+            setBundles(bundleItems);
+            setMessage('Catalog data refreshed.');
+          } catch (err) {
+            setError(err instanceof Error ? err.message : 'Failed to refresh catalog data');
+          }
+        }}
+      >
+        Refresh Catalogs
+      </Button>
       <TextInput label="Job ID" value={jobId} onChangeText={setJobId} mode="outlined" />
       <TextInput
         label="Customer ID"
@@ -176,6 +320,45 @@ export function EstimateBuilderScreen() {
         mode="outlined"
         multiline
       />
+      <TextInput
+        label="Adjustments (comma-separated codes)"
+        value={adjustmentsInput}
+        onChangeText={setAdjustmentsInput}
+        mode="outlined"
+        placeholder="after_hours, permit_fee"
+      />
+
+      <LaborPicker
+        laborRates={laborRates}
+        selectedJobType={laborJobType}
+        selectedLevel={laborLevel}
+        hoursChosen={laborHoursChosen}
+        onChange={(next) => {
+          if (next.jobType !== undefined) {
+            setLaborJobType(next.jobType);
+          }
+          if (next.level !== undefined) {
+            setLaborLevel(next.level);
+          }
+          if (next.hoursChosen !== undefined) {
+            setLaborHoursChosen(next.hoursChosen);
+          }
+        }}
+      />
+
+      <EquipmentSearch equipment={equipmentCatalog} onAdd={onAddEquipmentLine} />
+      <BundlePicker bundles={bundles} onApplyBundle={onApplyBundle} />
+
+      <Text variant="titleSmall">Current Equipment Lines</Text>
+      {equipmentLines.length === 0 ? (
+        <Text variant="bodySmall">No equipment lines added yet.</Text>
+      ) : (
+        equipmentLines.map((line, index) => (
+          <Text key={`${line.equipmentId ?? line.freeText ?? 'line'}-${index}`} variant="bodySmall">
+            {index + 1}. {line.equipmentId ?? line.freeText ?? 'Unknown item'} x {line.qty}
+          </Text>
+        ))
+      )}
 
       <Button mode="contained" onPress={onCreateEstimate} disabled={busy} loading={busy}>
         Create Estimate

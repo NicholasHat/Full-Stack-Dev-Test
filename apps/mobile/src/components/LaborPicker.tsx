@@ -1,15 +1,76 @@
 import { View } from 'react-native';
-import { Text, TextInput } from 'react-native-paper';
+import { Button, Text, TextInput } from 'react-native-paper';
+
+import { LaborRate } from '../api/client';
+
+type LaborPickerProps = {
+  laborRates: LaborRate[];
+  selectedJobType: string;
+  selectedLevel: string;
+  hoursChosen: string;
+  onChange: (next: { jobType?: string; level?: string; hoursChosen?: string }) => void;
+};
 
 // Component for picking labor details
+export function LaborPicker({
+  laborRates,
+  selectedJobType,
+  selectedLevel,
+  hoursChosen,
+  onChange,
+}: LaborPickerProps) {
+  const jobTypes = [...new Set(laborRates.map((rate) => rate.jobType))];
+  const levels = laborRates
+    .filter((rate) => rate.jobType === selectedJobType)
+    .map((rate) => rate.level);
 
-export function LaborPicker() {
+  const selectedRate = laborRates.find(
+    (rate) => rate.jobType === selectedJobType && rate.level === selectedLevel
+  );
+
   return (
     <View style={{ gap: 8 }}>
       <Text variant="titleSmall">Labor</Text>
-      <TextInput label="Job Type" mode="outlined" />
-      <TextInput label="Level" mode="outlined" />
-      <TextInput label="Hours" mode="outlined" keyboardType="decimal-pad" />
+      <TextInput
+        label="Job Type"
+        value={selectedJobType}
+        onChangeText={(value) => onChange({ jobType: value, level: '' })}
+        mode="outlined"
+      />
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+        {jobTypes.map((type) => (
+          <Button key={type} mode={selectedJobType === type ? 'contained' : 'outlined'} onPress={() => onChange({ jobType: type, level: '' })}>
+            {type}
+          </Button>
+        ))}
+      </View>
+
+      <TextInput
+        label="Level"
+        value={selectedLevel}
+        onChangeText={(value) => onChange({ level: value })}
+        mode="outlined"
+      />
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+        {levels.map((level) => (
+          <Button key={level} mode={selectedLevel === level ? 'contained' : 'outlined'} onPress={() => onChange({ level })}>
+            {level}
+          </Button>
+        ))}
+      </View>
+
+      <TextInput
+        label="Hours"
+        value={hoursChosen}
+        onChangeText={(value) => onChange({ hoursChosen: value })}
+        mode="outlined"
+        keyboardType="decimal-pad"
+      />
+      {selectedRate && (
+        <Text variant="bodySmall">
+          Suggested range: {selectedRate.estimatedHours.min} - {selectedRate.estimatedHours.max} hours @ ${selectedRate.hourlyRate}/hr
+        </Text>
+      )}
     </View>
   );
 }
