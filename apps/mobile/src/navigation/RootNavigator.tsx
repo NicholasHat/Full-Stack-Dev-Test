@@ -15,7 +15,9 @@ export type RootStackParamList = {
   Tabs: undefined;
   CustomerEdit: { customerId?: string } | undefined;
   JobEdit: { jobId?: string } | undefined;
-  EstimateBuilder: { jobId?: string; customerId?: string; estimateId?: string; draftId?: string } | undefined;
+  EstimateBuilder:
+    | { jobId?: string; customerId?: string; estimateId?: string; draftId?: string; copyFromEstimateId?: string }
+    | undefined;
   EstimateReview: { estimateId: string };
 };
 

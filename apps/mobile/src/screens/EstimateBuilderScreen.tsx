@@ -74,6 +74,7 @@ export function EstimateBuilderScreen() {
   useEffect(() => {
     const routedEstimateId = route.params?.estimateId?.trim();
     const routedDraftId = route.params?.draftId?.trim();
+    const copyFromEstimateId = route.params?.copyFromEstimateId?.trim();
 
     async function hydrateFromRoute() {
       if (routedEstimateId) {
@@ -110,11 +111,46 @@ export function EstimateBuilderScreen() {
         } catch (err) {
           setError(err instanceof Error ? err.message : 'Failed to load local draft');
         }
+        return;
+      }
+
+      if (copyFromEstimateId) {
+        setBusy(true);
+        setError(null);
+        try {
+          const estimate = await api.getEstimate(copyFromEstimateId);
+          setJobId(estimate.jobId);
+          setCustomerId(estimate.customerId);
+          setStatus('draft');
+          setEstimateId('');
+          setTotals(null);
+          setNotes(estimate.specialNotes ?? '');
+          setLaborJobType(estimate.labor?.jobType ?? '');
+          setLaborLevel(estimate.labor?.level ?? '');
+          setLaborHoursChosen(
+            estimate.labor?.hoursChosen === undefined || estimate.labor?.hoursChosen === null
+              ? ''
+              : String(estimate.labor.hoursChosen)
+          );
+          setEquipmentLines(
+            estimate.equipmentLines.map((line) => ({
+              equipmentId: line.equipmentId ?? null,
+              freeText: line.freeText ?? null,
+              qty: line.qty,
+            }))
+          );
+          setAdjustmentsInput(estimate.adjustments.map((adj) => adj.code).join(', '));
+          setMessage(`Duplicated estimate ${estimate.id}. Create to save as new estimate.`);
+        } catch (err) {
+          setError(err instanceof Error ? err.message : 'Failed to duplicate estimate');
+        } finally {
+          setBusy(false);
+        }
       }
     }
 
     hydrateFromRoute();
-  }, [route.params?.draftId, route.params?.estimateId]);
+  }, [route.params?.copyFromEstimateId, route.params?.draftId, route.params?.estimateId]);
 
   const adjustments = useMemo(
     () =>

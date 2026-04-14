@@ -23,6 +23,9 @@ export function EstimateHistoryScreen() {
   const [estimates, setEstimates] = useState<Estimate[]>([]);
   const [drafts, setDrafts] = useState<StoredEstimateDraftRow[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [estimateSort, setEstimateSort] = useState<'updated_desc' | 'updated_asc'>('updated_desc');
+  const [draftSort, setDraftSort] = useState<'updated_desc' | 'updated_asc'>('updated_desc');
 
   async function load() {
     setBusy(true);
@@ -42,36 +45,52 @@ export function EstimateHistoryScreen() {
     load();
   }, []);
 
+  const statusOptions = useMemo(() => {
+    const uniqueStatuses = [...new Set(estimates.map((estimate) => (estimate.status || 'unknown').trim()).filter(Boolean))];
+    return ['all', ...uniqueStatuses];
+  }, [estimates]);
+
   const filteredEstimates = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) {
-      return estimates;
-    }
-
-    return estimates.filter((estimate) => {
-      return (
-        estimate.id.toLowerCase().includes(q) ||
-        estimate.jobId.toLowerCase().includes(q) ||
-        estimate.customerId.toLowerCase().includes(q) ||
-        estimate.status.toLowerCase().includes(q)
-      );
-    });
-  }, [estimates, query]);
+    return estimates
+      .filter((estimate) => (statusFilter === 'all' ? true : estimate.status === statusFilter))
+      .filter((estimate) => {
+        if (!q) {
+          return true;
+        }
+        return (
+          estimate.id.toLowerCase().includes(q) ||
+          estimate.jobId.toLowerCase().includes(q) ||
+          estimate.customerId.toLowerCase().includes(q) ||
+          estimate.status.toLowerCase().includes(q)
+        );
+      })
+      .sort((a, b) => {
+        const left = new Date(a.updatedAt).getTime();
+        const right = new Date(b.updatedAt).getTime();
+        return estimateSort === 'updated_desc' ? right - left : left - right;
+      });
+  }, [estimateSort, estimates, query, statusFilter]);
 
   const filteredDrafts = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) {
-      return drafts;
-    }
-
-    return drafts.filter((draft) => {
-      return (
-        draft.id.toLowerCase().includes(q) ||
-        (draft.job_id ?? '').toLowerCase().includes(q) ||
-        (draft.customer_id ?? '').toLowerCase().includes(q)
-      );
-    });
-  }, [drafts, query]);
+    return drafts
+      .filter((draft) => {
+        if (!q) {
+          return true;
+        }
+        return (
+          draft.id.toLowerCase().includes(q) ||
+          (draft.job_id ?? '').toLowerCase().includes(q) ||
+          (draft.customer_id ?? '').toLowerCase().includes(q)
+        );
+      })
+      .sort((a, b) => {
+        const left = new Date(a.updated_at).getTime();
+        const right = new Date(b.updated_at).getTime();
+        return draftSort === 'updated_desc' ? right - left : left - right;
+      });
+  }, [draftSort, drafts, query]);
 
   function onDeleteDraft(draftId: string) {
     Alert.alert('Delete Draft', `Delete local draft ${draftId}?`, [
@@ -103,11 +122,35 @@ export function EstimateHistoryScreen() {
         <Button mode="contained" onPress={load} loading={busy} disabled={busy}>
           Refresh
         </Button>
+        <Text variant="bodySmall" style={styles.mutedText}>Estimate Status Filter</Text>
+        <View style={styles.chipRow}>
+          {statusOptions.map((status) => (
+            <Button
+              key={status}
+              compact
+              mode={statusFilter === status ? 'contained' : 'outlined'}
+              onPress={() => setStatusFilter(status)}
+            >
+              {status}
+            </Button>
+          ))}
+        </View>
         {!!error && <Text style={styles.errorText}>{error}</Text>}
       </View>
 
       <View style={styles.card}>
-        <Text variant="titleSmall" style={styles.textRow}>Server Estimates ({filteredEstimates.length})</Text>
+        <View style={styles.titleRow}>
+          <Text variant="titleSmall" style={styles.textRow}>Server Estimates ({filteredEstimates.length})</Text>
+          <Button
+            compact
+            mode="outlined"
+            onPress={() =>
+              setEstimateSort((prev) => (prev === 'updated_desc' ? 'updated_asc' : 'updated_desc'))
+            }
+          >
+            {estimateSort === 'updated_desc' ? 'Newest' : 'Oldest'}
+          </Button>
+        </View>
         {filteredEstimates.length === 0 ? (
           <Text style={styles.mutedText}>No estimates found.</Text>
         ) : (
@@ -135,6 +178,18 @@ export function EstimateHistoryScreen() {
                 >
                   Continue
                 </Button>
+                <Button
+                  mode="text"
+                  onPress={() =>
+                    navigation.navigate('EstimateBuilder', {
+                      copyFromEstimateId: estimate.id,
+                      jobId: estimate.jobId,
+                      customerId: estimate.customerId,
+                    })
+                  }
+                >
+                  Duplicate
+                </Button>
               </Card.Actions>
             </Card>
           ))
@@ -142,7 +197,16 @@ export function EstimateHistoryScreen() {
       </View>
 
       <View style={styles.card}>
-        <Text variant="titleSmall" style={styles.textRow}>Local Drafts ({filteredDrafts.length})</Text>
+        <View style={styles.titleRow}>
+          <Text variant="titleSmall" style={styles.textRow}>Local Drafts ({filteredDrafts.length})</Text>
+          <Button
+            compact
+            mode="outlined"
+            onPress={() => setDraftSort((prev) => (prev === 'updated_desc' ? 'updated_asc' : 'updated_desc'))}
+          >
+            {draftSort === 'updated_desc' ? 'Newest' : 'Oldest'}
+          </Button>
+        </View>
         {filteredDrafts.length === 0 ? (
           <Text style={styles.mutedText}>No local drafts found.</Text>
         ) : (
@@ -200,5 +264,16 @@ const styles = StyleSheet.create({
   },
   errorText: {
     color: '#F85149',
+  },
+  titleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 8,
+  },
+  chipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
   },
 });
