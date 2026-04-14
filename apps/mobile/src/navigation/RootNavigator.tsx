@@ -13,7 +13,7 @@ import { EstimateReviewScreen } from '../screens/EstimateReviewScreen';
 export type RootStackParamList = {
   Tabs: undefined;
   CustomerEdit: { customerId?: string } | undefined;
-  JobEdit: undefined;
+  JobEdit: { jobId?: string } | undefined;
   EstimateBuilder: undefined;
   EstimateReview: undefined;
 };

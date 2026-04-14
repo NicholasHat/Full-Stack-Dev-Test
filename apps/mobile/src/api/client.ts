@@ -25,6 +25,33 @@ export type CustomerInput = {
   lastServiceDate?: string | null;
 };
 
+export type Job = {
+  id: string;
+  customerId: string;
+  address?: string | null;
+  scheduledDate?: string | null;
+  status?: string | null;
+  specialNotes?: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type JobInput = {
+  customerId: string;
+  address?: string | null;
+  scheduledDate?: string | null;
+  status?: string | null;
+  specialNotes?: string | null;
+};
+
+export type JobPatch = {
+  customerId?: string;
+  address?: string | null;
+  scheduledDate?: string | null;
+  status?: string | null;
+  specialNotes?: string | null;
+};
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`, {
     headers: { 'Content-Type': 'application/json', ...(init?.headers ?? {}) },
@@ -55,7 +82,18 @@ export const api = {
       body: JSON.stringify(payload),
     }),
   listJobs: (customerId?: string) =>
-    request(`/jobs${customerId ? `?customerId=${encodeURIComponent(customerId)}` : ''}`),
+    request<Job[]>(`/jobs${customerId ? `?customerId=${encodeURIComponent(customerId)}` : ''}`),
+  getJob: (jobId: string) => request<Job>(`/jobs/${encodeURIComponent(jobId)}`),
+  createJob: (payload: JobInput) =>
+    request<Job>('/jobs', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  updateJob: (jobId: string, payload: JobPatch) =>
+    request<Job>(`/jobs/${encodeURIComponent(jobId)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    }),
   listEstimates: (jobId?: string) =>
     request(`/estimates${jobId ? `?jobId=${encodeURIComponent(jobId)}` : ''}`),
   getLaborRates: () => request('/catalog/labor-rates'),
