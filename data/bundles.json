@@ -1,0 +1,68 @@
+[
+  {
+    "id": "BND001",
+    "name": "Capacitor + Hard Start Quick Fix",
+    "description": "Common condenser start issue repair bundle",
+    "labor": {
+      "jobType": "repair",
+      "level": "minor",
+      "hoursChosen": 1.25
+    },
+    "equipmentLines": [
+      { "equipmentId": "EQ018", "qty": 1 },
+      { "equipmentId": "EQ019", "qty": 1 }
+    ],
+    "adjustments": [
+      { "code": "after_hours" }
+    ],
+    "notesTemplate": "Replaced failed run capacitor and installed hard start kit. Verified startup amperage and system operation."
+  },
+  {
+    "id": "BND002",
+    "name": "Thermostat Upgrade",
+    "description": "Smart thermostat swap and system setup",
+    "labor": {
+      "jobType": "install",
+      "level": "residential",
+      "hoursChosen": 2
+    },
+    "equipmentLines": [
+      { "equipmentId": "EQ016", "qty": 1 }
+    ],
+    "adjustments": [],
+    "notesTemplate": "Installed and configured thermostat. Verified heating/cooling calls and customer app pairing."
+  },
+  {
+    "id": "BND003",
+    "name": "Seasonal Maintenance Plus IAQ",
+    "description": "Comprehensive maintenance with indoor air quality add-on",
+    "labor": {
+      "jobType": "maintenance",
+      "level": "comprehensive",
+      "hoursChosen": 3
+    },
+    "equipmentLines": [
+      { "equipmentId": "EQ026", "qty": 1 },
+      { "equipmentId": "EQ027", "qty": 1 }
+    ],
+    "adjustments": [],
+    "notesTemplate": "Performed full maintenance checklist and installed IAQ accessories. Documented readings and filter condition."
+  },
+  {
+    "id": "BND004",
+    "name": "Mini-Split Service Call",
+    "description": "Diagnostic and common mini-split tune-up items",
+    "labor": {
+      "jobType": "install",
+      "level": "mini-split",
+      "hoursChosen": 3.5
+    },
+    "equipmentLines": [
+      { "equipmentId": "EQ016", "qty": 1 }
+    ],
+    "adjustments": [
+      { "code": "emergency_dispatch" }
+    ],
+    "notesTemplate": "Performed mini-split diagnostics, cleaned components, and validated temperature split and refrigerant indicators."
+  }
+]

@@ -2,6 +2,14 @@ import * as SQLite from 'expo-sqlite';
 
 const db = SQLite.openDatabaseSync('drafts.db');
 
+export type StoredEstimateDraftRow = {
+  id: string;
+  job_id: string | null;
+  customer_id: string | null;
+  payload_json: string;
+  updated_at: string;
+};
+
 export function initDraftsDb() {
   db.execSync(`
     CREATE TABLE IF NOT EXISTS estimate_drafts (
@@ -28,7 +36,7 @@ export function saveDraft(id: string, payloadJson: string, jobId?: string, custo
 export function searchDrafts(query: string) {
   initDraftsDb();
   const like = `%${query}%`;
-  return db.getAllSync(
+  return db.getAllSync<StoredEstimateDraftRow>(
     `
       SELECT *
       FROM estimate_drafts
@@ -36,5 +44,18 @@ export function searchDrafts(query: string) {
       ORDER BY updated_at DESC
     `,
     [like, like, like]
+  );
+}
+
+export function getDraftById(id: string) {
+  initDraftsDb();
+  return db.getFirstSync<StoredEstimateDraftRow>(
+    `
+      SELECT *
+      FROM estimate_drafts
+      WHERE id = ?
+      LIMIT 1
+    `,
+    [id]
   );
 }

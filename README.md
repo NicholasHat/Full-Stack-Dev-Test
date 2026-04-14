@@ -28,93 +28,91 @@ Build something that helps.
 
 Fork this repo, build your solution, and include a short write-up explaining your approach — what you built, why you made the choices you did, and what you'd do differently with more time.
 
-# HVAC Estimator Demo Plan
+## HVAC Estimator Demo Plan
 
-## Repo Structure
+### Repo Structure
 
 - apps/mobile
-    Expo + Reach Native + TypeScript
-- apps.api
+    Expo + React Native + TypeScript
+- apps/api
     FastAPI + Python
-- data 
+- data
     Original JSON data + bundles (common repair templates)
 
 ### Backend Foundation
+
 - FastAPI + Pydantic + SQLite
 - Endpoints:
-    GET /health
-    GET /catalog/equipment
-    GET /catalog/labor-rates
-    GET /catalog/bundles
-- CORS
-- Normalize source inconsistences when loading JSON (base_cost and baseCost)
+    - GET /health
+    - GET /catalog/equipment
+    - GET /catalog/labor-rates
+    - GET /catalog/bundles
+- CORS enabled
+- Normalize source inconsistencies when loading JSON (base_cost and baseCost)
 
-## SQLite Storage Tables
+### SQLite Storage Tables
 
 - customers
-- estimates 
-    includes: 
-        **IDS**: estimate ID, jobID, customerID
-        **Lifecycle**: status, version, createdAt, updatedAt
-        **JSON contents**: labor, equipmentLines, adjustments, totals
-        **Special Notes**
-- job 
-    includes job estimate(s) and customer + who/where/when/status
+- jobs
+- estimates
+    - IDs: estimateId, jobId, customerId
+    - Lifecycle: status, version, createdAt, updatedAt
+    - JSON fields: labor, equipmentLines, adjustments, totals
+    - specialNotes
 
-## CRUD endpoints
+### CRUD Endpoints
 
 - Customers:
-    POST /customers
-    GET /customers?query=
-    GET /customers/{id}
-    PATCH /customers/{id}
+    - POST /customers
+    - GET /customers?query=
+    - GET /customers/{id}
+    - PATCH /customers/{id}
 - Jobs:
-    POST /jobs
-    GET /jobs?customerID=
-    GET /jobs/{id}
-    PATCH /estimates/{id}
+    - POST /jobs
+    - GET /jobs?customerId=
+    - GET /jobs/{id}
+    - PATCH /jobs/{id}
+- Estimates:
+    - POST /estimates
+    - GET /estimates?jobId=
+    - GET /estimates/{id}
+    - PATCH /estimates/{id}
 
-## Determine Pricing
+### Deterministic Pricing
 
-- Server computes all totals but technician finalizes and confirms everything
+- Server computes all totals (technician reviews/finalizes)
+- Labor: hours can default to midpoint of estimated range
+- Equipment: based on baseCost (+ markup config)
+- Adjustments: fixed code-based modifiers
+- Endpoint: POST /estimates/{id}/reprice
 
-Labor: hours chosen (midpoint of min and max)
-Equipment: baseCost + ?
-Adjustments: rush service, extra hours, permits?
-Endpoint: reprice
-
-## Mobile Demo
+### Mobile Demo
 
 - Expo + TypeScript + React Navigation + React Native Paper
 - React Hook Form + Zod
 - expo-sqlite for local draft/offline cache
-- **Screens**
-    customer list/create/edit
-    job list/create/edit
-    estimate builder/review
-- **Estimate builder**
-    pick labor from catalog
-    pick hours in
-    add/search equipment
-    special notes
-    call reprice and show totals
+- Screens:
+    - customer list/create/edit
+    - job list/create/edit
+    - estimate builder/review
 
-## Bundles
-- bundle picker from bundles.json
-- applying a bundle will fill labor, equipment lines, and notes template but allow revision
+### Bundles
 
-## Finalization + PDF
+- data/bundles.json for common repair bundles
+- Applying a bundle can prefill labor, equipment lines, and notes template (editable)
+
+### Finalization + PDF
 
 - POST /estimates/{id}/finalize
 - GET /estimates/{id}/pdf
-Mobile share through expo-sharing
+- Mobile sharing through expo-sharing / native Share
 
-## AI integration (Gemini 2.5 Flash)
+### AI Integration (Gemini 2.5 Flash)
 
 - POST /ai/voice-to-draft
-    audio upload --> transcript --> to fill in JSONs
+    - audio upload -> transcript -> estimate draft JSON
 - POST /ai/notes-image-to-draft
-    image upload --> to fill in JSONS
+    - image upload -> estimate draft JSON
 - Validate AI output with Pydantic; retry on invalid output
 - AI never computes totals
 

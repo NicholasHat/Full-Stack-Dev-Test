@@ -20,6 +20,8 @@ import { LaborPicker } from '../components/LaborPicker';
 import { NotesPhotoCapture } from '../components/NotesPhotoCapture';
 import { VoiceCapture } from '../components/VoiceCapture';
 import { RootStackParamList } from '../navigation/RootNavigator';
+import { estimateDraftSchema } from '../schema/estimateDraft.zod';
+import { getDraftById, saveDraft, searchDrafts } from '../storage/drafts.sqlite';
 
 // Main screen for building an estimate
 
@@ -43,6 +45,7 @@ export function EstimateBuilderScreen() {
   const [message, setMessage] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [draftSearch, setDraftSearch] = useState('');
 
   useEffect(() => {
     async function loadCatalogData() {
@@ -89,6 +92,35 @@ export function EstimateBuilderScreen() {
       adjustments,
       specialNotes: notes || null,
     };
+  }
+
+  function applyLocalDraftToScreen(draft: EstimateDraftInput) {
+    if (draft.jobId) {
+      setJobId(draft.jobId);
+    }
+    if (draft.customerId) {
+      setCustomerId(draft.customerId);
+    }
+    if (draft.specialNotes !== undefined && draft.specialNotes !== null) {
+      setNotes(draft.specialNotes);
+    }
+    if (draft.labor) {
+      setLaborJobType(draft.labor.jobType ?? '');
+      setLaborLevel(draft.labor.level ?? '');
+      setLaborHoursChosen(draft.labor.hoursChosen == null ? '' : String(draft.labor.hoursChosen));
+    }
+    if (draft.equipmentLines) {
+      setEquipmentLines(
+        draft.equipmentLines.map((line) => ({
+          equipmentId: line.equipmentId ?? null,
+          freeText: line.freeText ?? null,
+          qty: line.qty,
+        }))
+      );
+    }
+    if (draft.adjustments) {
+      setAdjustmentsInput(draft.adjustments.map((adj) => adj.code).join(', '));
+    }
   }
 
   function syncEstimate(estimate: Estimate) {
@@ -208,7 +240,14 @@ export function EstimateBuilderScreen() {
     setError(null);
     setMessage('');
     try {
-      await api.applyEstimateDraft(estimateId, buildCurrentDraft());
+      const draft = estimateDraftSchema.parse({
+        ...buildCurrentDraft(),
+        equipmentLines,
+        adjustments,
+        missingRequiredFields: [],
+      });
+
+      await api.applyEstimateDraft(estimateId, draft);
 
       const repriced = await api.repriceEstimate(estimateId);
       setTotals(repriced.totals);
@@ -230,7 +269,14 @@ export function EstimateBuilderScreen() {
     setError(null);
     setMessage('');
     try {
-      await api.applyEstimateDraft(estimateId, buildCurrentDraft());
+      const draft = estimateDraftSchema.parse({
+        ...buildCurrentDraft(),
+        equipmentLines,
+        adjustments,
+        missingRequiredFields: [],
+      });
+
+      await api.applyEstimateDraft(estimateId, draft);
       await api.repriceEstimate(estimateId);
       const finalized = await api.finalizeEstimate(estimateId);
       syncEstimate(finalized);
@@ -321,6 +367,13 @@ export function EstimateBuilderScreen() {
         multiline
       />
       <TextInput
+        label="Find Local Draft"
+        value={draftSearch}
+        onChangeText={setDraftSearch}
+        mode="outlined"
+        placeholder="Estimate ID, Job ID, or Customer ID"
+      />
+      <TextInput
         label="Adjustments (comma-separated codes)"
         value={adjustmentsInput}
         onChangeText={setAdjustmentsInput}
@@ -362,6 +415,60 @@ export function EstimateBuilderScreen() {
 
       <Button mode="contained" onPress={onCreateEstimate} disabled={busy} loading={busy}>
         Create Estimate
+      </Button>
+      <Button
+        mode="outlined"
+        onPress={() => {
+          setError(null);
+          setMessage('');
+          try {
+            const draft = estimateDraftSchema.parse({
+              ...buildCurrentDraft(),
+              equipmentLines,
+              adjustments,
+              missingRequiredFields: [],
+            });
+
+            const id = estimateId.trim() || `LOCAL-${Date.now()}`;
+            saveDraft(id, JSON.stringify(draft), jobId || undefined, customerId || undefined);
+            if (!estimateId.trim()) {
+              setEstimateId(id);
+            }
+            setMessage(`Saved local draft ${id}`);
+          } catch (err) {
+            setError(err instanceof Error ? err.message : 'Failed to save local draft');
+          }
+        }}
+      >
+        Save Local Draft
+      </Button>
+      <Button
+        mode="outlined"
+        onPress={() => {
+          setError(null);
+          setMessage('');
+          try {
+            const query = draftSearch.trim() || estimateId.trim() || jobId.trim() || customerId.trim();
+            const row =
+              estimateId.trim()
+                ? getDraftById(estimateId.trim())
+                : (searchDrafts(query)[0] ?? null);
+
+            if (!row) {
+              setError('No local draft found.');
+              return;
+            }
+
+            const parsed = estimateDraftSchema.parse(JSON.parse(row.payload_json));
+            setEstimateId(row.id);
+            applyLocalDraftToScreen(parsed);
+            setMessage(`Loaded local draft ${row.id}`);
+          } catch (err) {
+            setError(err instanceof Error ? err.message : 'Failed to load local draft');
+          }
+        }}
+      >
+        Load Local Draft
       </Button>
       <VoiceCapture disabled={busy || !estimateId.trim()} onFileReady={onApplyAiDraftFromVoice} />
       <NotesPhotoCapture disabled={busy || !estimateId.trim()} onFileReady={onApplyAiDraftFromPhoto} />
