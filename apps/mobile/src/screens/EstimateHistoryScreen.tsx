@@ -4,7 +4,7 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Button, Card, Searchbar, Text } from 'react-native-paper';
 
-import { api, Estimate } from '../api/client';
+import { api, Customer, Estimate, Job } from '../api/client';
 import { RootStackParamList } from '../navigation/RootNavigator';
 import {
   deleteDraftById,
@@ -21,6 +21,8 @@ export function EstimateHistoryScreen() {
   const [query, setQuery] = useState('');
   const [busy, setBusy] = useState(false);
   const [estimates, setEstimates] = useState<Estimate[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [jobs, setJobs] = useState<Job[]>([]);
   const [drafts, setDrafts] = useState<StoredEstimateDraftRow[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [estimateSort, setEstimateSort] = useState<'updated_desc' | 'updated_asc'>('updated_desc');
@@ -30,8 +32,14 @@ export function EstimateHistoryScreen() {
     setBusy(true);
     setError(null);
     try {
-      const serverEstimates = await api.listEstimates();
+      const [serverEstimates, customerItems, jobItems] = await Promise.all([
+        api.listEstimates(),
+        api.listCustomers(),
+        api.listJobs(),
+      ]);
       setEstimates(serverEstimates);
+      setCustomers(customerItems);
+      setJobs(jobItems);
       setDrafts(listDrafts());
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load estimate history');
@@ -90,6 +98,25 @@ export function EstimateHistoryScreen() {
         return draftSort === 'updated_desc' ? right - left : left - right;
       });
   }, [draftSort, drafts, query]);
+
+  const customerNameById = useMemo(
+    () => new Map(customers.map((customer) => [customer.id, customer.name?.trim() || customer.id])),
+    [customers]
+  );
+
+  const jobLabelById = useMemo(
+    () => new Map(jobs.map((job) => [job.id, job.address?.trim() || job.id])),
+    [jobs]
+  );
+
+  function parseEstimateName(rawNotes: string | null | undefined) {
+    const firstLine = (rawNotes ?? '').split('\n')[0] ?? '';
+    const prefix = '[Estimate Name] ';
+    if (!firstLine.startsWith(prefix)) {
+      return '';
+    }
+    return firstLine.slice(prefix.length).trim();
+  }
 
   function onDeleteDraft(draftId: string) {
     Alert.alert('Delete Draft', `Delete local draft ${draftId}?`, [
@@ -155,10 +182,13 @@ export function EstimateHistoryScreen() {
         ) : (
           filteredEstimates.map((estimate) => (
             <Card key={estimate.id} style={styles.listCard}>
-              <Card.Title title={estimate.id} subtitle={`${estimate.status} · v${estimate.version}`} />
+              <Card.Title
+                title={parseEstimateName(estimate.specialNotes) || 'Untitled Estimate'}
+                subtitle={`Estimate ID: ${estimate.id} · ${estimate.status} · v${estimate.version}`}
+              />
               <Card.Content>
-                <Text style={styles.textRow}>Job: {estimate.jobId}</Text>
-                <Text style={styles.textRow}>Customer: {estimate.customerId}</Text>
+                <Text style={styles.textRow}>Job: {jobLabelById.get(estimate.jobId) ?? estimate.jobId}</Text>
+                <Text style={styles.textRow}>Customer: {customerNameById.get(estimate.customerId) ?? estimate.customerId}</Text>
                 <Text style={styles.mutedText}>Updated: {new Date(estimate.updatedAt).toLocaleString()}</Text>
               </Card.Content>
               <Card.Actions style={styles.cardActionsWrap}>
