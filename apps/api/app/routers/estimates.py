@@ -6,7 +6,7 @@ from app.schemas.ai_drafts import EstimateDraftInput
 from app.schemas.estimate import EstimateCreate, EstimateRead, EstimateRepriceResponse, EstimateUpdate
 from app.services.customer_repository import get_customer
 from app.services.estimate_draft_apply import apply_draft_to_estimate
-from app.services.estimate_repository import create_estimate, get_estimate, list_estimates, update_estimate
+from app.services.estimate_repository import create_estimate, delete_estimate, get_estimate, list_estimates, update_estimate
 from app.services.job_repository import get_job
 from app.services.pdf import render_estimate_pdf
 from app.services.pricing import reprice_estimate
@@ -124,3 +124,12 @@ def estimate_pdf_endpoint(estimate_id: str) -> Response:
         media_type="application/pdf",
         headers={"Content-Disposition": f'inline; filename="estimate-{estimate.id}.pdf"'},
     )
+
+
+@router.delete("/{estimate_id}", status_code=204)
+def delete_estimate_endpoint(estimate_id: str) -> Response:
+        if get_estimate(estimate_id) is None:
+            raise HTTPException(status_code=404, detail="Estimate not found")
+
+        delete_estimate(estimate_id)
+        return Response(status_code=204)

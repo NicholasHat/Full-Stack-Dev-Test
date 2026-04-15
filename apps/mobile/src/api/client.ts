@@ -289,6 +289,24 @@ export type UploadFileInput = {
   type: string;
 };
 
+async function parseResponseBody<T>(response: Response): Promise<T> {
+  if (response.status === 204 || response.status === 205) {
+    return undefined as T;
+  }
+
+  const contentLength = response.headers.get('content-length');
+  if (contentLength === '0') {
+    return undefined as T;
+  }
+
+  const text = await response.text();
+  if (!text.trim()) {
+    return undefined as T;
+  }
+
+  return JSON.parse(text) as T;
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const bases = [lastWorkingBaseUrl, ...buildBaseUrlCandidates()].filter(
     (value, index, array) => array.indexOf(value) === index
@@ -312,7 +330,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
       }
 
       lastWorkingBaseUrl = baseUrl;
-      return response.json() as Promise<T>;
+      return parseResponseBody<T>(response);
     } catch (error) {
       if (!isNetworkError(error)) {
         throw error;
@@ -357,7 +375,7 @@ async function upload<T>(path: string, file: UploadFileInput): Promise<T> {
       }
 
       lastWorkingBaseUrl = baseUrl;
-      return response.json() as Promise<T>;
+      return parseResponseBody<T>(response);
     } catch (error) {
       if (!isNetworkError(error)) {
         throw error;
@@ -408,6 +426,13 @@ export const api = {
       body: JSON.stringify(payload),
     }),
   getEstimate: (estimateId: string) => request<Estimate>(`/estimates/${encodeURIComponent(estimateId)}`),
+  deleteEstimate: (estimateId: string) =>
+    request<void>(`/estimates/${encodeURIComponent(estimateId)}`, { method: 'DELETE' }),
+  updateEstimate: (estimateId: string, payload: Partial<EstimateCreateInput>) =>
+    request<Estimate>(`/estimates/${encodeURIComponent(estimateId)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    }),
   applyEstimateDraft: (estimateId: string, payload: EstimateDraftInput) =>
     request<Estimate>(`/estimates/${encodeURIComponent(estimateId)}/apply-draft`, {
       method: 'POST',

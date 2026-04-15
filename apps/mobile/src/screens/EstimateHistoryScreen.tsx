@@ -112,6 +112,24 @@ export function EstimateHistoryScreen() {
     ]);
   }
 
+  function onDeleteEstimate(estimateId: string) {
+    Alert.alert('Delete Estimate', `Delete server estimate ${estimateId}?`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await api.deleteEstimate(estimateId);
+            setEstimates((prev) => prev.filter((item) => item.id !== estimateId));
+          } catch (err) {
+            setError(err instanceof Error ? err.message : 'Failed to delete estimate');
+          }
+        },
+      },
+    ]);
+  }
+
   return (
     <ScrollView
       style={styles.container}
@@ -168,12 +186,19 @@ export function EstimateHistoryScreen() {
                 <Text style={styles.textRow}>Customer: {estimate.customerId}</Text>
                 <Text style={styles.mutedText}>Updated: {new Date(estimate.updatedAt).toLocaleString()}</Text>
               </Card.Content>
-              <Card.Actions>
-                <Button mode="text" onPress={() => navigation.navigate('EstimateReview', { estimateId: estimate.id })}>
+              <Card.Actions style={styles.cardActionsWrap}>
+                <Button
+                  mode="text"
+                  compact
+                  icon="open-in-new"
+                  onPress={() => navigation.navigate('EstimateReview', { estimateId: estimate.id })}
+                >
                   Open Review
                 </Button>
                 <Button
                   mode="text"
+                  compact
+                  icon="pencil"
                   onPress={() =>
                     navigation.navigate('EstimateBuilder', {
                       estimateId: estimate.id,
@@ -186,6 +211,8 @@ export function EstimateHistoryScreen() {
                 </Button>
                 <Button
                   mode="text"
+                  compact
+                  icon="content-copy"
                   onPress={() =>
                     navigation.navigate('EstimateBuilder', {
                       copyFromEstimateId: estimate.id,
@@ -195,6 +222,9 @@ export function EstimateHistoryScreen() {
                   }
                 >
                   Duplicate as New
+                </Button>
+                <Button mode="text" compact icon="trash-can" onPress={() => onDeleteEstimate(estimate.id)}>
+                  Delete
                 </Button>
               </Card.Actions>
             </Card>
@@ -223,9 +253,11 @@ export function EstimateHistoryScreen() {
                 <Text style={styles.textRow}>Job: {draft.job_id || '-'}</Text>
                 <Text style={styles.textRow}>Customer: {draft.customer_id || '-'}</Text>
               </Card.Content>
-              <Card.Actions>
+              <Card.Actions style={styles.cardActionsWrap}>
                 <Button
                   mode="text"
+                  compact
+                  icon="folder-open"
                   onPress={() =>
                     navigation.navigate('EstimateBuilder', {
                       draftId: draft.id,
@@ -236,7 +268,7 @@ export function EstimateHistoryScreen() {
                 >
                   Open in Builder
                 </Button>
-                <Button mode="text" onPress={() => onDeleteDraft(draft.id)}>
+                <Button mode="text" compact icon="trash-can" onPress={() => onDeleteDraft(draft.id)}>
                   Delete
                 </Button>
               </Card.Actions>
@@ -281,5 +313,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
+  },
+  cardActionsWrap: {
+    flexWrap: 'wrap',
+    justifyContent: 'flex-start',
   },
 });

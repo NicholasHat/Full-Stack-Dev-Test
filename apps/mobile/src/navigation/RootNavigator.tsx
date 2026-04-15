@@ -26,10 +26,10 @@ const Tabs = createBottomTabNavigator();
 
 function TabsNavigator() {
   return (
-    <Tabs.Navigator>
-      <Tabs.Screen name="Customers" component={CustomersScreen} />
-      <Tabs.Screen name="Jobs" component={JobsScreen} />
+    <Tabs.Navigator initialRouteName="Estimates">
       <Tabs.Screen name="Estimates" component={EstimateHistoryScreen} />
+      <Tabs.Screen name="Jobs" component={JobsScreen} />
+      <Tabs.Screen name="Customers" component={CustomersScreen} />
     </Tabs.Navigator>
   );
 }

@@ -1,16 +1,20 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
-import { Button, Text, TextInput } from 'react-native-paper';
+import { Audio } from 'expo-av';
+import * as ImagePicker from 'expo-image-picker';
+import { Button, FAB, Searchbar, Text, TextInput } from 'react-native-paper';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import {
   api,
   Bundle,
+  Customer,
   EquipmentCatalogItem,
   Estimate,
   EstimateDraftInput,
   EstimateTotals,
+  Job,
   LaborRate,
   UploadFileInput,
 } from '../api/client';
@@ -19,8 +23,6 @@ import { EstimateStatusCard } from '../components/EstimateStatusCard';
 import { BundlePicker } from '../components/BundlePicker';
 import { EquipmentSearch } from '../components/EquipmentSearch';
 import { LaborPicker } from '../components/LaborPicker';
-import { NotesPhotoCapture } from '../components/NotesPhotoCapture';
-import { VoiceCapture } from '../components/VoiceCapture';
 import { RootStackParamList } from '../navigation/RootNavigator';
 import { estimateDraftSchema } from '../schema/estimateDraft.zod';
 import { getDraftById, saveDraft, searchDrafts } from '../storage/drafts.sqlite';
@@ -30,39 +32,58 @@ import { appColors } from '../theme/uiStyles';
 // Main screen for building an estimate
 
 export function EstimateBuilderScreen() {
+  type EquipmentLineDraft = {
+    equipmentId?: string | null;
+    freeText?: string | null;
+    qty: number;
+    unitPrice?: number | null;
+  };
+
   const route = useRoute<RouteProp<RootStackParamList, 'EstimateBuilder'>>();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [jobId, setJobId] = useState(route.params?.jobId ?? '');
   const [customerId, setCustomerId] = useState(route.params?.customerId ?? '');
+  const [estimateName, setEstimateName] = useState('');
   const [estimateId, setEstimateId] = useState(route.params?.estimateId ?? '');
   const [status, setStatus] = useState<string>('draft');
   const [totals, setTotals] = useState<EstimateTotals | null>(null);
   const [notes, setNotes] = useState('');
+  const [customerSearch, setCustomerSearch] = useState('');
+  const [jobSearch, setJobSearch] = useState('');
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [jobs, setJobs] = useState<Job[]>([]);
   const [laborRates, setLaborRates] = useState<LaborRate[]>([]);
   const [equipmentCatalog, setEquipmentCatalog] = useState<EquipmentCatalogItem[]>([]);
   const [bundles, setBundles] = useState<Bundle[]>([]);
   const [laborJobType, setLaborJobType] = useState('');
   const [laborLevel, setLaborLevel] = useState('');
   const [laborHoursChosen, setLaborHoursChosen] = useState('');
-  const [equipmentLines, setEquipmentLines] = useState<Array<{ equipmentId?: string | null; freeText?: string | null; qty: number }>>([]);
+  const [equipmentLines, setEquipmentLines] = useState<EquipmentLineDraft[]>([]);
   const [adjustmentsInput, setAdjustmentsInput] = useState('');
   const [message, setMessage] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [mediaFabOpen, setMediaFabOpen] = useState(false);
+  const [recording, setRecording] = useState<Audio.Recording | null>(null);
+  const [captureBusy, setCaptureBusy] = useState(false);
   const [draftSearch, setDraftSearch] = useState('');
   const [autoSaveNote, setAutoSaveNote] = useState('');
 
   useEffect(() => {
     async function loadCatalogData() {
       try {
-        const [rates, equipment, bundleItems] = await Promise.all([
+        const [rates, equipment, bundleItems, customerItems, jobItems] = await Promise.all([
           api.getLaborRates(),
           api.getEquipment(),
           api.getBundles(),
+          api.listCustomers(),
+          api.listJobs(),
         ]);
         setLaborRates(rates);
         setEquipmentCatalog(equipment);
         setBundles(bundleItems);
+        setCustomers(customerItems);
+        setJobs(jobItems);
       } catch {
         // Keep UI usable even if catalog fetch fails initially.
       }
@@ -124,7 +145,9 @@ export function EstimateBuilderScreen() {
           setStatus('draft');
           setEstimateId('');
           setTotals(null);
-          setNotes(estimate.specialNotes ?? '');
+          const parsedNotes = parseEstimateNameAndNotes(estimate.specialNotes ?? '');
+          setEstimateName(parsedNotes.name);
+          setNotes(parsedNotes.notes);
           setLaborJobType(estimate.labor?.jobType ?? '');
           setLaborLevel(estimate.labor?.level ?? '');
           setLaborHoursChosen(
@@ -162,6 +185,38 @@ export function EstimateBuilderScreen() {
     [adjustmentsInput]
   );
 
+  const filteredCustomers = useMemo(() => {
+    const q = customerSearch.trim().toLowerCase();
+    if (!q) {
+      return customers.slice(0, 5);
+    }
+
+    return customers
+      .filter(
+        (item) =>
+          item.id.toLowerCase().includes(q) ||
+          (item.name ?? '').toLowerCase().includes(q) ||
+          (item.address ?? '').toLowerCase().includes(q)
+      )
+      .slice(0, 5);
+  }, [customerSearch, customers]);
+
+  const filteredJobs = useMemo(() => {
+    const q = jobSearch.trim().toLowerCase();
+    if (!q) {
+      return jobs.slice(0, 5);
+    }
+
+    return jobs
+      .filter(
+        (job) =>
+          job.id.toLowerCase().includes(q) ||
+          (job.address ?? '').toLowerCase().includes(q) ||
+          (job.status ?? '').toLowerCase().includes(q)
+      )
+      .slice(0, 5);
+  }, [jobSearch, jobs]);
+
   const workingDraftId = useMemo(() => {
     const estimate = estimateId.trim();
     if (estimate) {
@@ -184,10 +239,20 @@ export function EstimateBuilderScreen() {
 
   const hasServerEstimate = useMemo(() => !!estimateId.trim(), [estimateId]);
 
+  function defaultUnitPriceForEquipmentId(equipmentId: string | null | undefined) {
+    if (!equipmentId) {
+      return null;
+    }
+
+    const found = equipmentCatalog.find((item) => item.id === equipmentId);
+    return found ? found.baseCost : null;
+  }
+
   useEffect(() => {
     const hasAnyData =
       !!jobId.trim() ||
       !!customerId.trim() ||
+      !!estimateName.trim() ||
       !!notes.trim() ||
       !!laborJobType.trim() ||
       !!laborLevel.trim() ||
@@ -224,11 +289,16 @@ export function EstimateBuilderScreen() {
     laborHoursChosen,
     laborJobType,
     laborLevel,
+    estimateName,
     notes,
     workingDraftId,
   ]);
 
   function buildCurrentDraft(): EstimateDraftInput {
+    const composedNotes = [estimateName.trim() ? `[Estimate Name] ${estimateName.trim()}` : '', notes]
+      .filter(Boolean)
+      .join('\n');
+
     return {
       jobId: jobId || null,
       customerId: customerId || null,
@@ -242,8 +312,85 @@ export function EstimateBuilderScreen() {
           : undefined,
       equipmentLines,
       adjustments,
-      specialNotes: notes || null,
+      specialNotes: composedNotes || null,
     };
+  }
+
+  function parseEstimateNameAndNotes(rawNotes: string | null | undefined) {
+    const value = rawNotes ?? '';
+    const lines = value.split('\n');
+    const firstLine = lines[0] ?? '';
+    const prefix = '[Estimate Name] ';
+
+    if (firstLine.startsWith(prefix)) {
+      return {
+        name: firstLine.slice(prefix.length).trim(),
+        notes: lines.slice(1).join('\n').trim(),
+      };
+    }
+
+    return {
+      name: '',
+      notes: value,
+    };
+  }
+
+  function findBestEquipmentId(value: string | null | undefined) {
+    const needle = (value ?? '').trim().toLowerCase();
+    if (!needle) {
+      return null;
+    }
+
+    const exact = equipmentCatalog.find((item) => item.id.toLowerCase() === needle);
+    if (exact) {
+      return exact.id;
+    }
+
+    const fuzzy = equipmentCatalog.find(
+      (item) =>
+        item.name.toLowerCase().includes(needle) ||
+        item.brand.toLowerCase().includes(needle) ||
+        item.modelNumber.toLowerCase().includes(needle) ||
+        needle.includes(item.id.toLowerCase())
+    );
+
+    return fuzzy?.id ?? null;
+  }
+
+  function enhanceAiDraftWithCatalog(draft: EstimateDraftInput, sourceText?: string | null) {
+    const text = `${sourceText ?? ''}\n${draft.specialNotes ?? ''}`.toLowerCase();
+
+    const normalizedEquipment = (draft.equipmentLines ?? []).map((line) => {
+      const matchedId = findBestEquipmentId(line.equipmentId ?? line.freeText ?? null);
+      return {
+        ...line,
+        equipmentId: matchedId ?? line.equipmentId ?? null,
+      };
+    });
+
+    const matchedBundles = bundles.filter((bundle) => {
+      const name = bundle.name.toLowerCase();
+      return !!name && text.includes(name);
+    });
+
+    const bundleEquipment = matchedBundles.flatMap((bundle) =>
+      bundle.equipmentLines.map((line) => ({
+        equipmentId: line.equipmentId ?? null,
+        freeText: null,
+        qty: line.qty,
+      }))
+    );
+
+    const mergedEquipmentLines = [...normalizedEquipment, ...bundleEquipment];
+
+    return {
+      ...draft,
+      equipmentLines: mergedEquipmentLines,
+      adjustments:
+        draft.adjustments && draft.adjustments.length > 0
+          ? draft.adjustments
+          : matchedBundles.flatMap((bundle) => bundle.adjustments.map((adj) => ({ code: adj.code }))),
+    } satisfies EstimateDraftInput;
   }
 
   function applyLocalDraftToScreen(draft: EstimateDraftInput) {
@@ -254,7 +401,9 @@ export function EstimateBuilderScreen() {
       setCustomerId(draft.customerId);
     }
     if (draft.specialNotes !== undefined && draft.specialNotes !== null) {
-      setNotes(draft.specialNotes);
+      const parsed = parseEstimateNameAndNotes(draft.specialNotes);
+      setEstimateName(parsed.name);
+      setNotes(parsed.notes);
     }
     if (draft.labor) {
       setLaborJobType(draft.labor.jobType ?? '');
@@ -267,6 +416,7 @@ export function EstimateBuilderScreen() {
           equipmentId: line.equipmentId ?? null,
           freeText: line.freeText ?? null,
           qty: line.qty,
+          unitPrice: defaultUnitPriceForEquipmentId(line.equipmentId ?? null),
         }))
       );
     }
@@ -279,7 +429,9 @@ export function EstimateBuilderScreen() {
     setEstimateId(estimate.id);
     setStatus(estimate.status);
     setTotals(estimate.totals ?? null);
-    setNotes(estimate.specialNotes ?? '');
+    const parsed = parseEstimateNameAndNotes(estimate.specialNotes ?? '');
+    setEstimateName(parsed.name);
+    setNotes(parsed.notes);
     setLaborJobType(estimate.labor?.jobType ?? '');
     setLaborLevel(estimate.labor?.level ?? '');
     setLaborHoursChosen(
@@ -292,6 +444,7 @@ export function EstimateBuilderScreen() {
         equipmentId: line.equipmentId ?? null,
         freeText: line.freeText ?? null,
         qty: line.qty,
+        unitPrice: line.unitPrice ?? null,
       }))
     );
     setAdjustmentsInput(estimate.adjustments.map((adj) => adj.code).join(', '));
@@ -333,7 +486,7 @@ export function EstimateBuilderScreen() {
             : null,
         equipmentLines,
         adjustments,
-        specialNotes: notes || null,
+        specialNotes: buildCurrentDraft().specialNotes ?? null,
       });
       syncEstimate(estimate);
       setMessage(`Created estimate ${estimate.id}`);
@@ -355,7 +508,8 @@ export function EstimateBuilderScreen() {
     setMessage('');
     try {
       const aiResult = await api.aiVoiceToDraft(file);
-      await applyDraft(aiResult.draft, 'AI voice draft applied to estimate.');
+      const enhancedDraft = enhanceAiDraftWithCatalog(aiResult.draft, aiResult.transcript);
+      await applyDraft(enhancedDraft, 'AI voice draft applied to estimate.');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to apply AI voice draft');
     } finally {
@@ -374,7 +528,8 @@ export function EstimateBuilderScreen() {
     setMessage('');
     try {
       const aiResult = await api.aiNotesImageToDraft(file);
-      await applyDraft(aiResult.draft, 'AI notes draft applied to estimate.');
+      const enhancedDraft = enhanceAiDraftWithCatalog(aiResult.draft, aiResult.extractedText);
+      await applyDraft(enhancedDraft, 'AI notes draft applied to estimate.');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to apply AI notes draft');
     } finally {
@@ -392,6 +547,15 @@ export function EstimateBuilderScreen() {
     setError(null);
     setMessage('');
     try {
+      await api.updateEstimate(estimateId, {
+        equipmentLines: equipmentLines.map((line) => ({
+          equipmentId: line.equipmentId ?? null,
+          freeText: line.freeText ?? null,
+          qty: line.qty,
+          unitPrice: line.unitPrice ?? null,
+        })),
+      });
+
       const draft = estimateDraftSchema.parse({
         ...buildCurrentDraft(),
         equipmentLines,
@@ -403,6 +567,23 @@ export function EstimateBuilderScreen() {
 
       const repriced = await api.repriceEstimate(estimateId);
       setTotals(repriced.totals);
+      setEquipmentLines(
+        repriced.equipmentLines.map((line) => ({
+          equipmentId: line.equipmentId ?? null,
+          freeText: line.freeText ?? null,
+          qty: line.qty,
+          unitPrice: line.unitPrice ?? defaultUnitPriceForEquipmentId(line.equipmentId ?? null),
+        }))
+      );
+      if (repriced.labor) {
+        setLaborJobType(repriced.labor.jobType ?? laborJobType);
+        setLaborLevel(repriced.labor.level ?? laborLevel);
+        setLaborHoursChosen(
+          repriced.labor.hoursChosen === undefined || repriced.labor.hoursChosen === null
+            ? laborHoursChosen
+            : String(repriced.labor.hoursChosen)
+        );
+      }
       setMessage('Repriced successfully.');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to reprice estimate');
@@ -421,6 +602,15 @@ export function EstimateBuilderScreen() {
     setError(null);
     setMessage('');
     try {
+      await api.updateEstimate(estimateId, {
+        equipmentLines: equipmentLines.map((line) => ({
+          equipmentId: line.equipmentId ?? null,
+          freeText: line.freeText ?? null,
+          qty: line.qty,
+          unitPrice: line.unitPrice ?? null,
+        })),
+      });
+
       const draft = estimateDraftSchema.parse({
         ...buildCurrentDraft(),
         equipmentLines,
@@ -429,7 +619,16 @@ export function EstimateBuilderScreen() {
       });
 
       await api.applyEstimateDraft(estimateId, draft);
-      await api.repriceEstimate(estimateId);
+      const repriced = await api.repriceEstimate(estimateId);
+      setTotals(repriced.totals);
+      setEquipmentLines(
+        repriced.equipmentLines.map((line) => ({
+          equipmentId: line.equipmentId ?? null,
+          freeText: line.freeText ?? null,
+          qty: line.qty,
+          unitPrice: line.unitPrice ?? defaultUnitPriceForEquipmentId(line.equipmentId ?? null),
+        }))
+      );
       const finalized = await api.finalizeEstimate(estimateId);
       syncEstimate(finalized);
       setMessage(`Finalized estimate ${finalized.id}`);
@@ -447,8 +646,38 @@ export function EstimateBuilderScreen() {
     }
   }
 
-  function onAddEquipmentLine(line: { equipmentId: string; qty: number }) {
-    setEquipmentLines((prev) => [...prev, { equipmentId: line.equipmentId, qty: line.qty }]);
+  function onAddEquipmentLine(line: { equipmentId: string; qty: number; unitPrice?: number | null }) {
+    setEquipmentLines((prev) => [
+      ...prev,
+      {
+        equipmentId: line.equipmentId,
+        qty: line.qty,
+        unitPrice: line.unitPrice ?? null,
+      },
+    ]);
+  }
+
+  function onUpdateEquipmentQty(indexToUpdate: number, value: string) {
+    const parsed = Number(value);
+    setEquipmentLines((prev) =>
+      prev.map((line, index) =>
+        index === indexToUpdate ? { ...line, qty: Number.isFinite(parsed) && parsed > 0 ? parsed : 1 } : line
+      )
+    );
+  }
+
+  function onUpdateEquipmentUnitPrice(indexToUpdate: number, value: string) {
+    const parsed = Number(value);
+    setEquipmentLines((prev) =>
+      prev.map((line, index) =>
+        index === indexToUpdate
+          ? {
+              ...line,
+              unitPrice: Number.isFinite(parsed) && parsed >= 0 ? parsed : null,
+            }
+          : line
+      )
+    );
   }
 
   function onRemoveEquipmentLine(indexToRemove: number) {
@@ -465,7 +694,11 @@ export function EstimateBuilderScreen() {
     if (bundle.equipmentLines.length > 0) {
       setEquipmentLines((prev) => [
         ...prev,
-        ...bundle.equipmentLines.map((line) => ({ equipmentId: line.equipmentId ?? null, qty: line.qty })),
+        ...bundle.equipmentLines.map((line) => ({
+          equipmentId: line.equipmentId ?? null,
+          qty: line.qty,
+          unitPrice: defaultUnitPriceForEquipmentId(line.equipmentId ?? null),
+        })),
       ]);
     }
 
@@ -485,8 +718,120 @@ export function EstimateBuilderScreen() {
     setMessage(`Applied bundle: ${bundle.name}`);
   }
 
+  async function onVoiceFabPress() {
+    if (!hasServerEstimate) {
+      setError('Create an estimate first.');
+      return;
+    }
+
+    setCaptureBusy(true);
+    setError(null);
+    try {
+      if (!recording) {
+        const permission = await Audio.requestPermissionsAsync();
+        if (!permission.granted) {
+          setError('Microphone permission is required.');
+          return;
+        }
+
+        await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
+        const created = await Audio.Recording.createAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
+        setRecording(created.recording);
+        setMessage('Recording started. Tap mic again to stop and apply.');
+        return;
+      }
+
+      await recording.stopAndUnloadAsync();
+      await Audio.setAudioModeAsync({ allowsRecordingIOS: false });
+      const uri = recording.getURI();
+      setRecording(null);
+
+      if (!uri) {
+        setError('Recording failed to save.');
+        return;
+      }
+
+      await onApplyAiDraftFromVoice({
+        uri,
+        name: `voice-${Date.now()}.m4a`,
+        type: 'audio/mp4',
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Voice capture failed');
+    } finally {
+      setCaptureBusy(false);
+    }
+  }
+
+  async function onPhotoFabPress() {
+    if (!hasServerEstimate) {
+      setError('Create an estimate first.');
+      return;
+    }
+
+    setCaptureBusy(true);
+    setError(null);
+    try {
+      const permission = await ImagePicker.requestCameraPermissionsAsync();
+      if (!permission.granted) {
+        setError('Camera permission is required.');
+        return;
+      }
+
+      const result = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.8 });
+      if (result.canceled || result.assets.length === 0) {
+        return;
+      }
+
+      const asset = result.assets[0];
+      await onApplyAiDraftFromPhoto({
+        uri: asset.uri,
+        name: asset.fileName ?? `notes-${Date.now()}.jpg`,
+        type: asset.mimeType ?? 'image/jpeg',
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Photo capture failed');
+    } finally {
+      setCaptureBusy(false);
+    }
+  }
+
+  async function onUploadPhotoFabPress() {
+    if (!hasServerEstimate) {
+      setError('Create an estimate first.');
+      return;
+    }
+
+    setCaptureBusy(true);
+    setError(null);
+    try {
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permission.granted) {
+        setError('Photo library permission is required.');
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.8 });
+      if (result.canceled || result.assets.length === 0) {
+        return;
+      }
+
+      const asset = result.assets[0];
+      await onApplyAiDraftFromPhoto({
+        uri: asset.uri,
+        name: asset.fileName ?? `upload-${Date.now()}.jpg`,
+        type: asset.mimeType ?? 'image/jpeg',
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Photo upload failed');
+    } finally {
+      setCaptureBusy(false);
+    }
+  }
+
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <View style={styles.root}>
+      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <View style={styles.card}>
         <Text variant="titleMedium">Estimate Builder</Text>
         <Text style={styles.mutedText}>Build a quote, apply AI notes, reprice totals, then finalize.</Text>
@@ -500,36 +845,57 @@ export function EstimateBuilderScreen() {
       </View>
 
       <View style={styles.card}>
-      <Button
+      <TextInput
+        label="Estimate Name"
+        value={estimateName}
+        onChangeText={setEstimateName}
         mode="outlined"
-        onPress={async () => {
-          try {
-            const [rates, equipment, bundleItems] = await Promise.all([
-              api.getLaborRates(),
-              api.getEquipment(),
-              api.getBundles(),
-            ]);
-            setLaborRates(rates);
-            setEquipmentCatalog(equipment);
-            setBundles(bundleItems);
-            setMessage('Catalog data refreshed.');
-          } catch (err) {
-            setError(err instanceof Error ? err.message : 'Failed to refresh catalog data');
-          }
-        }}
-      >
-        Refresh Catalogs
-      </Button>
-      </View>
-
-      <View style={styles.card}>
+        placeholder="Spring tune-up quote"
+      />
       <TextInput label="Job ID" value={jobId} onChangeText={setJobId} mode="outlined" />
+      <Searchbar
+        placeholder="Search Jobs by ID or address"
+        value={jobSearch}
+        onChangeText={setJobSearch}
+      />
+      {jobSearch.trim().length > 0 && filteredJobs.map((job) => (
+        <Button
+          key={job.id}
+          mode="text"
+          compact
+          onPress={() => {
+            setJobId(job.id);
+            setCustomerId(job.customerId);
+            setJobSearch('');
+          }}
+        >
+          {job.id} · {job.address || job.status || 'Job'}
+        </Button>
+      ))}
       <TextInput
         label="Customer ID"
         value={customerId}
         onChangeText={setCustomerId}
         mode="outlined"
       />
+      <Searchbar
+        placeholder="Search Customers by name"
+        value={customerSearch}
+        onChangeText={setCustomerSearch}
+      />
+      {customerSearch.trim().length > 0 && filteredCustomers.map((customer) => (
+        <Button
+          key={customer.id}
+          mode="text"
+          compact
+          onPress={() => {
+            setCustomerId(customer.id);
+            setCustomerSearch('');
+          }}
+        >
+          {customer.name || customer.id} · {customer.id}
+        </Button>
+      ))}
       <TextInput
         label="Estimate ID"
         value={estimateId}
@@ -596,12 +962,30 @@ export function EstimateBuilderScreen() {
         ) : (
           equipmentLines.map((line, index) => (
             <View key={`${line.equipmentId ?? line.freeText ?? 'line'}-${index}`} style={styles.equipmentRow}>
-              <Text variant="bodySmall" style={styles.equipmentLabel}>
-                {index + 1}. {line.equipmentId ?? line.freeText ?? 'Unknown item'} x {line.qty}
-              </Text>
-              <Button mode="text" compact onPress={() => onRemoveEquipmentLine(index)}>
-                Remove
-              </Button>
+              <View style={styles.equipmentLabel}>
+                <Text variant="bodySmall" style={styles.textRow}>
+                  {index + 1}. {line.equipmentId ?? line.freeText ?? 'Unknown item'}
+                </Text>
+                <View style={styles.equipmentEditRow}>
+                  <TextInput
+                    label="Qty"
+                    mode="outlined"
+                    keyboardType="numeric"
+                    value={String(line.qty)}
+                    onChangeText={(value) => onUpdateEquipmentQty(index, value)}
+                    style={styles.equipmentQtyInput}
+                  />
+                  <TextInput
+                    label="Unit Cost"
+                    mode="outlined"
+                    keyboardType="numeric"
+                    value={line.unitPrice == null ? '' : String(line.unitPrice)}
+                    onChangeText={(value) => onUpdateEquipmentUnitPrice(index, value)}
+                    style={styles.equipmentCostInput}
+                  />
+                </View>
+              </View>
+              <Button mode="text" compact onPress={() => onRemoveEquipmentLine(index)}>Remove</Button>
             </View>
           ))
         )}
@@ -644,6 +1028,7 @@ export function EstimateBuilderScreen() {
       >
         Save Draft Locally
       </Button>
+      <Text style={styles.mutedText}>Save Draft Locally stores current form data on-device in SQLite for offline restore.</Text>
       <Button
         mode="outlined"
         disabled={busy}
@@ -673,11 +1058,11 @@ export function EstimateBuilderScreen() {
       >
         Load Saved Draft
       </Button>
+      <Text style={styles.mutedText}>Load Saved Draft restores the latest matching local draft by estimate/job/customer search.</Text>
       </View>
 
       <View style={styles.card}>
-      <VoiceCapture disabled={busy || !hasServerEstimate} onFileReady={onApplyAiDraftFromVoice} />
-      <NotesPhotoCapture disabled={busy || !hasServerEstimate} onFileReady={onApplyAiDraftFromPhoto} />
+      <Text style={styles.mutedText}>Use the bottom-right AI buttons to record voice or capture notes photo.</Text>
       <Button mode="outlined" onPress={onReprice} disabled={busy || !hasServerEstimate} loading={busy}>
         Recalculate Totals
       </Button>
@@ -696,11 +1081,72 @@ export function EstimateBuilderScreen() {
       <EstimateStatusCard status={status} message={message} error={error} />
 
       <EstimateTotalsCard totals={totals} />
-    </ScrollView>
+      </ScrollView>
+
+      {recording ? (
+        <FAB
+          icon="stop-circle"
+          label="Stop Recording"
+          style={styles.stopRecordingFab}
+          onPress={() => {
+            if (busy || captureBusy || !hasServerEstimate) {
+              return;
+            }
+            onVoiceFabPress();
+          }}
+        />
+      ) : (
+      <FAB.Group
+        open={mediaFabOpen}
+        visible
+        icon="plus"
+        actions={[
+          {
+            icon: 'microphone',
+            label: 'Voice',
+            onPress: () => {
+              setMediaFabOpen(false);
+              if (busy || captureBusy || !hasServerEstimate) {
+                return;
+              }
+              onVoiceFabPress();
+            },
+          },
+          {
+            icon: 'camera',
+            label: 'Take Picture',
+            onPress: () => {
+              setMediaFabOpen(false);
+              if (busy || captureBusy || !hasServerEstimate) {
+                return;
+              }
+              onPhotoFabPress();
+            },
+          },
+          {
+            icon: 'image',
+            label: 'Upload Picture',
+            onPress: () => {
+              setMediaFabOpen(false);
+              if (busy || captureBusy || !hasServerEstimate) {
+                return;
+              }
+              onUploadPhotoFabPress();
+            },
+          },
+        ]}
+        onStateChange={({ open }) => setMediaFabOpen(open)}
+      />
+      )}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: appColors.bg,
+  },
   container: {
     ...screenStyles.container,
   },
@@ -723,7 +1169,23 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   equipmentLabel: {
-    color: appColors.text,
     flex: 1,
+  },
+  equipmentEditRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  equipmentQtyInput: {
+    flex: 1,
+  },
+  equipmentCostInput: {
+    flex: 1.2,
+  },
+  stopRecordingFab: {
+    position: 'absolute',
+    right: 16,
+    bottom: 16,
+    backgroundColor: '#EF4444',
   },
 });

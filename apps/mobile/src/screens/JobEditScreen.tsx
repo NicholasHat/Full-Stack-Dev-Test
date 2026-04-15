@@ -19,7 +19,7 @@ export function JobEditScreen() {
   const [customerId, setCustomerId] = useState('');
   const [address, setAddress] = useState('');
   const [scheduledDate, setScheduledDate] = useState('');
-  const [status, setStatus] = useState('draft');
+  const [status, setStatus] = useState('open');
   const [specialNotes, setSpecialNotes] = useState('');
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -42,7 +42,7 @@ export function JobEditScreen() {
         setCustomerId(job.customerId ?? '');
         setAddress(job.address ?? '');
         setScheduledDate(job.scheduledDate ?? '');
-        setStatus(job.status ?? 'draft');
+        setStatus(job.status ?? 'open');
         setSpecialNotes(job.specialNotes ?? '');
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load job');
@@ -69,7 +69,7 @@ export function JobEditScreen() {
           customerId: customerId.trim(),
           address: address || null,
           scheduledDate: scheduledDate || null,
-          status: status || 'draft',
+          status: status || 'open',
           specialNotes: specialNotes || null,
         });
       } else {
@@ -77,7 +77,7 @@ export function JobEditScreen() {
           customerId: customerId.trim(),
           address: address || null,
           scheduledDate: scheduledDate || null,
-          status: status || 'draft',
+          status: status || 'open',
           specialNotes: specialNotes || null,
         });
       }
@@ -114,8 +114,20 @@ export function JobEditScreen() {
           value={status}
           onChangeText={setStatus}
           mode="outlined"
-          placeholder="draft"
+          placeholder="open"
         />
+        <View style={styles.statusRow}>
+          {['open', 'complete', 'delayed'].map((option) => (
+            <Button
+              key={option}
+              compact
+              mode={status === option ? 'contained' : 'outlined'}
+              onPress={() => setStatus(option)}
+            >
+              {option}
+            </Button>
+          ))}
+        </View>
         <TextInput
           label="Special Notes"
           value={specialNotes}
@@ -146,5 +158,10 @@ const styles = StyleSheet.create({
   },
   mutedText: {
     color: appColors.muted,
+  },
+  statusRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
   },
 });

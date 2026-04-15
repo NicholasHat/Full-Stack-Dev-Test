@@ -95,6 +95,16 @@ def get_estimate(estimate_id: str) -> EstimateRead | None:
     return _row_to_estimate(row)
 
 
+def delete_estimate(estimate_id: str) -> bool:
+    conn = get_connection()
+    try:
+        cursor = conn.execute("DELETE FROM estimates WHERE id = ?", (estimate_id,))
+        conn.commit()
+        return cursor.rowcount > 0
+    finally:
+        conn.close()
+
+
 def list_estimates(job_id: str | None = None) -> list[EstimateRead]:
     conn = get_connection()
     try:
