@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Response
 
 from app.schemas.customer import CustomerCreate, CustomerRead, CustomerUpdate
-from app.services.customer_repository import create_customer, get_customer, list_customers, update_customer
+from app.services.customer_repository import create_customer, delete_customer, get_customer, list_customers, update_customer
 
 router = APIRouter(prefix="/customers", tags=["customers"])
 
@@ -35,3 +35,12 @@ def patch_customer_endpoint(customer_id: str, patch: CustomerUpdate) -> Customer
     if updated is None:
         raise HTTPException(status_code=404, detail="Customer not found")
     return updated
+
+
+@router.delete("/{customer_id}", status_code=204)
+def delete_customer_endpoint(customer_id: str) -> Response:
+    if get_customer(customer_id) is None:
+        raise HTTPException(status_code=404, detail="Customer not found")
+
+    delete_customer(customer_id)
+    return Response(status_code=204)

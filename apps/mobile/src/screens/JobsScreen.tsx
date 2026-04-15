@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import { Alert, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { Button, Card, HelperText, Text } from 'react-native-paper';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -53,6 +53,24 @@ export function JobsScreen() {
     return items.filter((job) => (job.status || 'unknown') === statusFilter);
   }, [items, statusFilter]);
 
+  function onDeleteJob(jobId: string) {
+    Alert.alert('Delete Job', `Delete job ${jobId}? This also removes related estimates.`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await api.deleteJob(jobId);
+            setItems((prev) => prev.filter((item) => item.id !== jobId));
+          } catch (err) {
+            setError(err instanceof Error ? err.message : 'Failed to delete job');
+          }
+        },
+      },
+    ]);
+  }
+
   return (
     <ScrollView
       style={styles.container}
@@ -99,6 +117,9 @@ export function JobsScreen() {
                 onPress={() => navigation.navigate('EstimateBuilder', { jobId: j.id, customerId: j.customerId })}
               >
                 Build Estimate
+              </Button>
+              <Button mode="text" onPress={() => onDeleteJob(j.id)}>
+                Delete
               </Button>
           </Card.Actions>
         </Card>

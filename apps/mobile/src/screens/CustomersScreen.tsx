@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, View } from 'react-native';
 import { Button, Card, HelperText, Searchbar, Text } from 'react-native-paper';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -41,6 +41,24 @@ export function CustomersScreen() {
     }, [query])
   );
 
+  function onDeleteCustomer(customerId: string) {
+    Alert.alert('Delete Customer', `Delete customer ${customerId}? This also removes related jobs and estimates.`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await api.deleteCustomer(customerId);
+            setItems((prev) => prev.filter((item) => item.id !== customerId));
+          } catch (err) {
+            setError(err instanceof Error ? err.message : 'Failed to delete customer');
+          }
+        },
+      },
+    ]);
+  }
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <View style={styles.card}>
@@ -59,6 +77,14 @@ export function CustomersScreen() {
       {items.map((c) => (
         <Card key={c.id} onPress={() => navigation.navigate('CustomerEdit', { customerId: c.id })} style={styles.listCard}>
           <Card.Title title={c.name || c.id} subtitle={c.address || 'No address'} />
+          <Card.Actions>
+            <Button mode="text" compact onPress={() => navigation.navigate('CustomerEdit', { customerId: c.id })}>
+              Edit
+            </Button>
+            <Button mode="text" compact onPress={() => onDeleteCustomer(c.id)}>
+              Delete
+            </Button>
+          </Card.Actions>
         </Card>
       ))}
 

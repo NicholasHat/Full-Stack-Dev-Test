@@ -127,3 +127,14 @@ def update_job(job_id: str, patch: JobUpdate) -> JobRead | None:
         conn.close()
 
     return get_job(job_id)
+
+
+def delete_job(job_id: str) -> bool:
+    conn = get_connection()
+    try:
+        conn.execute("DELETE FROM estimates WHERE job_id = ?", (job_id,))
+        cursor = conn.execute("DELETE FROM jobs WHERE id = ?", (job_id,))
+        conn.commit()
+        return cursor.rowcount > 0
+    finally:
+        conn.close()

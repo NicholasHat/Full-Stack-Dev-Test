@@ -405,6 +405,8 @@ export const api = {
       method: 'PATCH',
       body: JSON.stringify(payload),
     }),
+  deleteCustomer: (customerId: string) =>
+    request<void>(`/customers/${encodeURIComponent(customerId)}`, { method: 'DELETE' }),
   listJobs: (customerId?: string) =>
     request<Job[]>(`/jobs${customerId ? `?customerId=${encodeURIComponent(customerId)}` : ''}`),
   getJob: (jobId: string) => request<Job>(`/jobs/${encodeURIComponent(jobId)}`),
@@ -418,6 +420,8 @@ export const api = {
       method: 'PATCH',
       body: JSON.stringify(payload),
     }),
+  deleteJob: (jobId: string) =>
+    request<void>(`/jobs/${encodeURIComponent(jobId)}`, { method: 'DELETE' }),
   listEstimates: (jobId?: string) =>
     request<Estimate[]>(`/estimates${jobId ? `?jobId=${encodeURIComponent(jobId)}` : ''}`),
   createEstimate: (payload: EstimateCreateInput) =>

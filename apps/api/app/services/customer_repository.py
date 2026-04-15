@@ -131,3 +131,22 @@ def update_customer(customer_id: str, patch: CustomerUpdate) -> CustomerRead | N
         conn.close()
 
     return get_customer(customer_id)
+
+
+def delete_customer(customer_id: str) -> bool:
+    conn = get_connection()
+    try:
+        job_rows = conn.execute("SELECT id FROM jobs WHERE customer_id = ?", (customer_id,)).fetchall()
+        job_ids = [row["id"] for row in job_rows]
+
+        if job_ids:
+            placeholders = ",".join("?" for _ in job_ids)
+            conn.execute(f"DELETE FROM estimates WHERE job_id IN ({placeholders})", tuple(job_ids))
+
+        conn.execute("DELETE FROM estimates WHERE customer_id = ?", (customer_id,))
+        conn.execute("DELETE FROM jobs WHERE customer_id = ?", (customer_id,))
+        cursor = conn.execute("DELETE FROM customers WHERE id = ?", (customer_id,))
+        conn.commit()
+        return cursor.rowcount > 0
+    finally:
+        conn.close()

@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Response
 
 from app.schemas.job import JobCreate, JobRead, JobUpdate
 from app.services.customer_repository import get_customer
-from app.services.job_repository import create_job, get_job, list_jobs, update_job
+from app.services.job_repository import create_job, delete_job, get_job, list_jobs, update_job
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 
@@ -42,3 +42,12 @@ def patch_job_endpoint(job_id: str, patch: JobUpdate) -> JobRead:
     if updated is None:
         raise HTTPException(status_code=404, detail="Job not found")
     return updated
+
+
+@router.delete("/{job_id}", status_code=204)
+def delete_job_endpoint(job_id: str) -> Response:
+    if get_job(job_id) is None:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    delete_job(job_id)
+    return Response(status_code=204)
