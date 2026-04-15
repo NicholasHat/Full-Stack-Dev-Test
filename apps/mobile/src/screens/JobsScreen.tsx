@@ -60,11 +60,6 @@ export function JobsScreen() {
       refreshControl={<RefreshControl refreshing={busy} onRefresh={load} />}
     >
       <View style={styles.card}>
-        <Text variant="titleMedium">Jobs</Text>
-        <Text style={styles.mutedText}>Track active jobs and open estimate builder.</Text>
-      </View>
-
-      <View style={styles.card}>
         <Button mode="contained" onPress={load} loading={busy} disabled={busy}>
           Refresh Jobs
         </Button>

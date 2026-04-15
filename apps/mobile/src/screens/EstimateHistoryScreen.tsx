@@ -137,11 +137,6 @@ export function EstimateHistoryScreen() {
       refreshControl={<RefreshControl refreshing={busy} onRefresh={load} />}
     >
       <View style={styles.card}>
-        <Text variant="titleMedium">Estimate History</Text>
-        <Text style={styles.mutedText}>Browse server estimates and local drafts.</Text>
-      </View>
-
-      <View style={styles.card}>
         <Searchbar value={query} onChangeText={setQuery} placeholder="Search estimate/job/customer/status" />
         <Button mode="contained" onPress={load} loading={busy} disabled={busy}>
           Refresh

@@ -953,9 +953,6 @@ export function EstimateBuilderScreen() {
         {!hasRequiredIdentifiers && (
           <Text style={styles.mutedText}>Step 1: Enter Job ID and Customer ID, then create a server estimate.</Text>
         )}
-        {!hasServerEstimate && (
-          <Text style={styles.mutedText}>Step 2: You can use AI now on local draft. Create server estimate before reprice/finalize/review.</Text>
-        )}
         {!!autoSaveNote && <Text style={styles.mutedText}>{autoSaveNote}</Text>}
       </View>
 
@@ -1177,7 +1174,6 @@ export function EstimateBuilderScreen() {
       </View>
 
       <View style={styles.card}>
-      <Text style={styles.mutedText}>Use the bottom-right AI buttons to record voice or capture notes photo.</Text>
       <Button mode="outlined" onPress={onReprice} disabled={busy || !hasServerEstimate} loading={busy}>
         Recalculate Totals
       </Button>

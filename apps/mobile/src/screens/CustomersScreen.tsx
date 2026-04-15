@@ -44,11 +44,6 @@ export function CustomersScreen() {
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <View style={styles.card}>
-        <Text variant="titleMedium">Customers</Text>
-        <Text style={styles.mutedText}>Search or create customer records.</Text>
-      </View>
-
-      <View style={styles.card}>
         <Searchbar value={query} onChangeText={setQuery} placeholder="Search customers" />
         <Button mode="contained" onPress={load} loading={busy} disabled={busy}>
           Search
