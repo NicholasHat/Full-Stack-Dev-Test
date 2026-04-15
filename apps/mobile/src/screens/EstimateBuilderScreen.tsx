@@ -237,7 +237,7 @@ export function EstimateBuilderScreen() {
     [customerId, jobId]
   );
 
-  const hasServerEstimate = useMemo(() => !!estimateId.trim(), [estimateId]);
+  const hasServerEstimate = useMemo(() => /^EST-/i.test(estimateId.trim()), [estimateId]);
 
   function defaultUnitPriceForEquipmentId(equipmentId: string | null | undefined) {
     if (!equipmentId) {
@@ -461,6 +461,33 @@ export function EstimateBuilderScreen() {
     setMessage(successMessage);
   }
 
+  function applyDraftLocally(draft: EstimateDraftInput, successMessage: string) {
+    const draftWithFallbacks: EstimateDraftInput = {
+      ...draft,
+      jobId: draft.jobId ?? (jobId || null),
+      customerId: draft.customerId ?? (customerId || null),
+    };
+
+    applyLocalDraftToScreen(draftWithFallbacks);
+
+    const parsedDraft = estimateDraftSchema.parse({
+      ...draftWithFallbacks,
+      equipmentLines: draftWithFallbacks.equipmentLines ?? [],
+      adjustments: draftWithFallbacks.adjustments ?? [],
+      missingRequiredFields: draftWithFallbacks.missingRequiredFields ?? [],
+    });
+
+    saveDraft(
+      workingDraftId,
+      JSON.stringify(parsedDraft),
+      draftWithFallbacks.jobId ?? undefined,
+      draftWithFallbacks.customerId ?? undefined
+    );
+
+    setAutoSaveNote(`Saved AI local draft ${workingDraftId}`);
+    setMessage(`${successMessage} Saved locally. Create a server estimate when ready.`);
+  }
+
   async function onCreateEstimate() {
     if (!jobId.trim() || !customerId.trim()) {
       setError('Job ID and Customer ID are required to create an estimate.');
@@ -498,18 +525,17 @@ export function EstimateBuilderScreen() {
   }
 
   async function onApplyAiDraftFromVoice(file: UploadFileInput) {
-    if (!estimateId.trim()) {
-      setError('Create an estimate first.');
-      return;
-    }
-
     setBusy(true);
     setError(null);
     setMessage('');
     try {
       const aiResult = await api.aiVoiceToDraft(file);
       const enhancedDraft = enhanceAiDraftWithCatalog(aiResult.draft, aiResult.transcript);
-      await applyDraft(enhancedDraft, 'AI voice draft applied to estimate.');
+      if (hasServerEstimate) {
+        await applyDraft(enhancedDraft, 'AI voice draft applied to estimate.');
+      } else {
+        applyDraftLocally(enhancedDraft, 'AI voice draft applied to local draft.');
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to apply AI voice draft');
     } finally {
@@ -518,18 +544,17 @@ export function EstimateBuilderScreen() {
   }
 
   async function onApplyAiDraftFromPhoto(file: UploadFileInput) {
-    if (!estimateId.trim()) {
-      setError('Create an estimate first.');
-      return;
-    }
-
     setBusy(true);
     setError(null);
     setMessage('');
     try {
       const aiResult = await api.aiNotesImageToDraft(file);
       const enhancedDraft = enhanceAiDraftWithCatalog(aiResult.draft, aiResult.extractedText);
-      await applyDraft(enhancedDraft, 'AI notes draft applied to estimate.');
+      if (hasServerEstimate) {
+        await applyDraft(enhancedDraft, 'AI notes draft applied to estimate.');
+      } else {
+        applyDraftLocally(enhancedDraft, 'AI notes draft applied to local draft.');
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to apply AI notes draft');
     } finally {
@@ -719,11 +744,6 @@ export function EstimateBuilderScreen() {
   }
 
   async function onVoiceFabPress() {
-    if (!hasServerEstimate) {
-      setError('Create an estimate first.');
-      return;
-    }
-
     setCaptureBusy(true);
     setError(null);
     try {
@@ -764,11 +784,6 @@ export function EstimateBuilderScreen() {
   }
 
   async function onPhotoFabPress() {
-    if (!hasServerEstimate) {
-      setError('Create an estimate first.');
-      return;
-    }
-
     setCaptureBusy(true);
     setError(null);
     try {
@@ -797,11 +812,6 @@ export function EstimateBuilderScreen() {
   }
 
   async function onUploadPhotoFabPress() {
-    if (!hasServerEstimate) {
-      setError('Create an estimate first.');
-      return;
-    }
-
     setCaptureBusy(true);
     setError(null);
     try {
@@ -839,7 +849,7 @@ export function EstimateBuilderScreen() {
           <Text style={styles.mutedText}>Step 1: Enter Job ID and Customer ID, then create a server estimate.</Text>
         )}
         {!hasServerEstimate && (
-          <Text style={styles.mutedText}>Step 2: Create estimate before AI apply, reprice, and finalize actions.</Text>
+          <Text style={styles.mutedText}>Step 2: You can use AI now on local draft. Create server estimate before reprice/finalize/review.</Text>
         )}
         {!!autoSaveNote && <Text style={styles.mutedText}>{autoSaveNote}</Text>}
       </View>
@@ -1089,7 +1099,7 @@ export function EstimateBuilderScreen() {
           label="Stop Recording"
           style={styles.stopRecordingFab}
           onPress={() => {
-            if (busy || captureBusy || !hasServerEstimate) {
+            if (busy || captureBusy) {
               return;
             }
             onVoiceFabPress();
@@ -1106,7 +1116,7 @@ export function EstimateBuilderScreen() {
             label: 'Voice',
             onPress: () => {
               setMediaFabOpen(false);
-              if (busy || captureBusy || !hasServerEstimate) {
+              if (busy || captureBusy) {
                 return;
               }
               onVoiceFabPress();
@@ -1117,7 +1127,7 @@ export function EstimateBuilderScreen() {
             label: 'Take Picture',
             onPress: () => {
               setMediaFabOpen(false);
-              if (busy || captureBusy || !hasServerEstimate) {
+              if (busy || captureBusy) {
                 return;
               }
               onPhotoFabPress();
@@ -1128,7 +1138,7 @@ export function EstimateBuilderScreen() {
             label: 'Upload Picture',
             onPress: () => {
               setMediaFabOpen(false);
-              if (busy || captureBusy || !hasServerEstimate) {
+              if (busy || captureBusy) {
                 return;
               }
               onUploadPhotoFabPress();
