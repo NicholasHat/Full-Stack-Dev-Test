@@ -28,6 +28,23 @@ Build something that helps.
 
 Fork this repo, build your solution, and include a short write-up explaining your approach — what you built, why you made the choices you did, and what you'd do differently with more time.
 
+## HVAC Estimate Write Up
+
+This was a really fun project where I learned a lot using Expo and React Native for the first time to create an app. I started by researching what a technician’s day actually looks like so the workflow would match real on-site constraints and problems.
+
+One of the first ideas I had was to implement voice recording and notes photos, because typing detailed estimate info on a phone or iPad at the job site is slow and prone to mistakes. I wanted techs to quickly fill estimate info that becomes fast because of their knowledge and experience of labor and equipment types.
+
+The AI features were designed to help fill fields from audio and images, but not to take over estimate control. I kept pricing and finalization in the hands of the technician so the result remains an expert estimate AI generated output that could be hallucinated and incorrect.
+
+Using Expo + React Native felt necessary for this project because a mobile-first app is the most practical tool for technicians in the field, and offline capability would be needed, as oppposed to a website that would require using a browser and having internet connection. I added local draft saving with SQLite so techs can keep working even with poor or no Wi-Fi. 
+
+I also focused on reducing on-site time by allowing prep work before arrival: technicians can create customers/jobs ahead of time and then move quickly into estimate building. 
+
+On the backend, I used FastAPI for a clean and fast API layer with deterministic server-side repricing so totals stay consistent and calculated quickly. It is also used as secure AI orchecstration to send prompts to Gemini and validate responses.
+
+With more time, I would improve adjustment UX (for example sliders and guided controls instead of pure typing), fully deploy production infrastructure, and add accounts/roles with admin controls for scoped data access and targeted data reset tools. I would also add a desktop web app or website for office workflows so admin users can manage customers/jobs/estimates and connect estimate lifecycle data to spreadsheet or reporting pipelines for analysis, like better visibility into on-site time from creation and finalization timestamps. 
+
+
 ## HVAC Estimator Demo Plan
 
 ### Repo Structure
@@ -116,16 +133,15 @@ Fork this repo, build your solution, and include a short write-up explaining you
 - Validate AI output with Pydantic; retry on invalid output
 - AI never computes totals
 
-## Test in Expo iOS Simulator
+## Run on iOS Simulator and iPhone
 
 ### Prerequisites
 
-- macOS with Xcode installed
-- iOS Simulator available (`xcrun simctl list devices`)
+- macOS with Xcode + iOS Simulator
 - Node.js + npm
-- Python virtual environment at `.venv`
+- Project Python venv at `.venv`
 
-### 1) Start the API (Terminal A)
+### 1) Start API (Terminal A)
 
 From repo root:
 
@@ -133,15 +149,7 @@ From repo root:
 /Users/nicholastweedie/Desktop/Full-Stack-Dev-Test/.venv/bin/python -m uvicorn --app-dir /Users/nicholastweedie/Desktop/Full-Stack-Dev-Test/apps/api app.main:app --host 0.0.0.0 --port 8000
 ```
 
-Quick check:
-
-```bash
-curl http://127.0.0.1:8000/health
-```
-
-Expected response includes `{"status":"ok"...}`.
-
-### 2) Start Expo (Terminal B)
+### 2) Run on iOS Simulator (Terminal B)
 
 ```bash
 cd apps/mobile
@@ -149,87 +157,28 @@ npm install
 npx expo start --localhost --clear
 ```
 
-Then press `i` in the Expo terminal to launch the iOS Simulator.
+Press `i` in the Expo terminal to open iOS Simulator.
 
-> `--localhost` is for simulator-only workflows. For Expo Go on a real phone, use the Expo Go section below.
-
-### 3) API Base URL for Simulator
-
-For iOS Simulator, use loopback:
+Use API base URL:
 
 - `http://127.0.0.1:8000` (preferred)
-- `http://localhost:8000` (also works)
 
-If needed, set `EXPO_PUBLIC_API_BASE_URL` in the mobile env to one of the above values and restart Expo.
+### 3) Run on iPhone (Expo Go)
 
-## Test in Expo Go (Physical iPhone/Android)
-
-If the app opens from QR but API calls fail (`/estimates`, `/jobs`, `/customers`), this is usually a host/network issue.
-
-### 1) Use your Mac LAN IP for API base URL
-
-Create/update [apps/mobile/.env](apps/mobile/.env):
+Set [apps/mobile/.env](apps/mobile/.env):
 
 ```bash
 EXPO_PUBLIC_API_BASE_URL=http://<YOUR_MAC_LAN_IP>:8000
 ```
 
-Example:
-
-```bash
-EXPO_PUBLIC_API_BASE_URL=http://192.168.1.25:8000
-```
-
-Do **not** use `127.0.0.1` or `localhost` on a physical device.
-
-### 2) Start API bound to all interfaces
-
-```bash
-/Users/nicholastweedie/Desktop/Full-Stack-Dev-Test/.venv/bin/python -m uvicorn --app-dir /Users/nicholastweedie/Desktop/Full-Stack-Dev-Test/apps/api app.main:app --host 0.0.0.0 --port 8000
-```
-
-### 3) Start Expo for device access
+Then start Expo in LAN mode:
 
 ```bash
 cd apps/mobile
 npx expo start --lan --clear
 ```
 
-Scan the QR in Expo Go.
-
-### 4) Verify from phone
-
-On the phone browser, open:
-
-```text
-http://<YOUR_MAC_LAN_IP>:8000/health
-```
-
-If this does not load, the app cannot reach your API yet.
-
-### Expo Go troubleshooting checklist
-
-- Phone and Mac must be on the **same Wi-Fi** (no guest/isolation network).
-- Turn off VPN/proxy on phone and Mac.
-- Allow Python/Terminal through macOS Firewall (or temporarily disable firewall for testing).
-- If LAN is restricted, use personal hotspot/shared network.
-- Restart Expo after changing `.env` values.
-
-### Troubleshooting
-
-- `Method Not Allowed` on delete: old API process is running. Restart backend and retry.
-- `address already in use` on port 8000:
-
-```bash
-lsof -ti tcp:8000 | xargs -r kill -9
-```
-
-- Expo/Metro stuck:
-
-```bash
-pkill -f "expo start|@expo/cli|metro" || true
-npx expo start --localhost --clear
-```
+Scan the QR in Expo Go on iPhone.
 
 
 
