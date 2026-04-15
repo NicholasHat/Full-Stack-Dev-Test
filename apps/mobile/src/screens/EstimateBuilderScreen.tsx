@@ -346,15 +346,114 @@ export function EstimateBuilderScreen() {
       return exact.id;
     }
 
-    const fuzzy = equipmentCatalog.find(
-      (item) =>
-        item.name.toLowerCase().includes(needle) ||
-        item.brand.toLowerCase().includes(needle) ||
-        item.modelNumber.toLowerCase().includes(needle) ||
-        needle.includes(item.id.toLowerCase())
+    const needleTokens = tokenize(needle);
+    let bestId: string | null = null;
+    let bestScore = 0;
+
+    for (const item of equipmentCatalog) {
+      const id = item.id.toLowerCase();
+      const name = item.name.toLowerCase();
+      const brand = item.brand.toLowerCase();
+      const model = item.modelNumber.toLowerCase();
+      const haystack = `${id} ${name} ${brand} ${model}`;
+
+      let score = 0;
+      if (haystack.includes(needle)) {
+        score += 6;
+      }
+      if (needle.includes(id)) {
+        score += 4;
+      }
+
+      const itemTokens = new Set(tokenize(haystack));
+      for (const token of needleTokens) {
+        if (itemTokens.has(token)) {
+          score += 2;
+        } else if (
+          token.length >= 4 &&
+          Array.from(itemTokens).some((candidate) => candidate.includes(token) || token.includes(candidate))
+        ) {
+          score += 1;
+        }
+      }
+
+      if (score > bestScore) {
+        bestScore = score;
+        bestId = item.id;
+      }
+    }
+
+    return bestScore >= 3 ? bestId : null;
+  }
+
+  function tokenize(value: string) {
+    return value
+      .toLowerCase()
+      .split(/[^a-z0-9]+/)
+      .map((token) => token.trim())
+      .filter((token) => token.length >= 3);
+  }
+
+  function mergeEquipmentLines(lines: Array<{ equipmentId?: string | null; freeText?: string | null; qty: number }>) {
+    const merged = new Map<string, { equipmentId?: string | null; freeText?: string | null; qty: number }>();
+
+    for (const line of lines) {
+      const key = line.equipmentId?.trim()
+        ? `id:${line.equipmentId.trim()}`
+        : `text:${(line.freeText ?? '').trim().toLowerCase()}`;
+
+      if (!key || key === 'text:') {
+        continue;
+      }
+
+      const existing = merged.get(key);
+      if (existing) {
+        existing.qty += line.qty;
+      } else {
+        merged.set(key, {
+          equipmentId: line.equipmentId ?? null,
+          freeText: line.freeText ?? null,
+          qty: line.qty,
+        });
+      }
+    }
+
+    return Array.from(merged.values());
+  }
+
+  function matchBundlesFromTextAndEquipment(
+    text: string,
+    normalizedEquipment: Array<{ equipmentId?: string | null; freeText?: string | null; qty: number }>
+  ) {
+    const textTokens = new Set(tokenize(text));
+    const normalizedIds = new Set(
+      normalizedEquipment
+        .map((line) => line.equipmentId?.trim())
+        .filter((value): value is string => !!value)
     );
 
-    return fuzzy?.id ?? null;
+    return bundles.filter((bundle) => {
+      const nameTokens = tokenize(bundle.name ?? '');
+      const descriptionTokens = tokenize(bundle.description ?? '');
+      const bundleTextTokens = new Set([...nameTokens, ...descriptionTokens]);
+
+      let tokenMatches = 0;
+      for (const token of bundleTextTokens) {
+        if (textTokens.has(token)) {
+          tokenMatches += 1;
+        }
+      }
+
+      const equipmentMatches = bundle.equipmentLines.filter(
+        (line) => !!line.equipmentId && normalizedIds.has(line.equipmentId)
+      ).length;
+
+      const strongNameMatch = bundle.name && text.includes(bundle.name.toLowerCase());
+      const enoughTokenMatch = tokenMatches >= 2;
+      const enoughEquipmentOverlap = equipmentMatches >= Math.min(2, bundle.equipmentLines.length || 1);
+
+      return !!strongNameMatch || enoughTokenMatch || enoughEquipmentOverlap;
+    });
   }
 
   function enhanceAiDraftWithCatalog(draft: EstimateDraftInput, sourceText?: string | null) {
@@ -368,10 +467,7 @@ export function EstimateBuilderScreen() {
       };
     });
 
-    const matchedBundles = bundles.filter((bundle) => {
-      const name = bundle.name.toLowerCase();
-      return !!name && text.includes(name);
-    });
+    const matchedBundles = matchBundlesFromTextAndEquipment(text, normalizedEquipment);
 
     const bundleEquipment = matchedBundles.flatMap((bundle) =>
       bundle.equipmentLines.map((line) => ({
@@ -381,15 +477,24 @@ export function EstimateBuilderScreen() {
       }))
     );
 
-    const mergedEquipmentLines = [...normalizedEquipment, ...bundleEquipment];
+    const mergedEquipmentLines = mergeEquipmentLines([...normalizedEquipment, ...bundleEquipment]);
+
+    const adjustmentsFromDraft = draft.adjustments ?? [];
+    const adjustmentsFromBundles = matchedBundles.flatMap((bundle) =>
+      bundle.adjustments.map((adj) => ({ code: adj.code }))
+    );
+    const mergedAdjustments = Array.from(
+      new Map(
+        [...adjustmentsFromDraft, ...adjustmentsFromBundles]
+          .filter((adj) => !!adj.code?.trim())
+          .map((adj) => [adj.code.trim().toLowerCase(), { code: adj.code.trim() }])
+      ).values()
+    );
 
     return {
       ...draft,
       equipmentLines: mergedEquipmentLines,
-      adjustments:
-        draft.adjustments && draft.adjustments.length > 0
-          ? draft.adjustments
-          : matchedBundles.flatMap((bundle) => bundle.adjustments.map((adj) => ({ code: adj.code }))),
+      adjustments: mergedAdjustments,
     } satisfies EstimateDraftInput;
   }
 
