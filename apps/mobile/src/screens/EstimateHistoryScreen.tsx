@@ -23,7 +23,6 @@ export function EstimateHistoryScreen() {
   const [estimates, setEstimates] = useState<Estimate[]>([]);
   const [drafts, setDrafts] = useState<StoredEstimateDraftRow[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [statusFilter, setStatusFilter] = useState('all');
   const [estimateSort, setEstimateSort] = useState<'updated_desc' | 'updated_asc'>('updated_desc');
   const [draftSort, setDraftSort] = useState<'updated_desc' | 'updated_asc'>('updated_desc');
 
@@ -51,15 +50,9 @@ export function EstimateHistoryScreen() {
     }, [])
   );
 
-  const statusOptions = useMemo(() => {
-    const uniqueStatuses = [...new Set(estimates.map((estimate) => (estimate.status || 'unknown').trim()).filter(Boolean))];
-    return ['all', ...uniqueStatuses];
-  }, [estimates]);
-
   const filteredEstimates = useMemo(() => {
     const q = query.trim().toLowerCase();
     return estimates
-      .filter((estimate) => (statusFilter === 'all' ? true : estimate.status === statusFilter))
       .filter((estimate) => {
         if (!q) {
           return true;
@@ -76,7 +69,7 @@ export function EstimateHistoryScreen() {
         const right = new Date(b.updatedAt).getTime();
         return estimateSort === 'updated_desc' ? right - left : left - right;
       });
-  }, [estimateSort, estimates, query, statusFilter]);
+  }, [estimateSort, estimates, query]);
 
   const filteredDrafts = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -141,19 +134,6 @@ export function EstimateHistoryScreen() {
         <Button mode="contained" onPress={load} loading={busy} disabled={busy}>
           Refresh
         </Button>
-        <Text variant="bodySmall" style={styles.mutedText}>Filter Estimates by Status</Text>
-        <View style={styles.chipRow}>
-          {statusOptions.map((status) => (
-            <Button
-              key={status}
-              compact
-              mode={statusFilter === status ? 'contained' : 'outlined'}
-              onPress={() => setStatusFilter(status)}
-            >
-              {status}
-            </Button>
-          ))}
-        </View>
         {!!error && <Text style={styles.errorText}>{error}</Text>}
       </View>
 
@@ -302,11 +282,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    gap: 8,
-  },
-  chipRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: 8,
   },
   cardActionsWrap: {

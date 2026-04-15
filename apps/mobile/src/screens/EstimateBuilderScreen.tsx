@@ -248,6 +248,18 @@ export function EstimateBuilderScreen() {
     return found ? found.baseCost : null;
   }
 
+  function equipmentDisplayLabel(equipmentId: string | null | undefined, freeText: string | null | undefined) {
+    if (equipmentId) {
+      const found = equipmentCatalog.find((item) => item.id === equipmentId);
+      if (found) {
+        return `${equipmentId} · ${found.name}`;
+      }
+      return equipmentId;
+    }
+
+    return freeText ?? 'Unknown item';
+  }
+
   useEffect(() => {
     const hasAnyData =
       !!jobId.trim() ||
@@ -498,6 +510,31 @@ export function EstimateBuilderScreen() {
     } satisfies EstimateDraftInput;
   }
 
+  function mergeAiDraftWithCurrent(draft: EstimateDraftInput) {
+    const currentEquipment = equipmentLines.map((line) => ({
+      equipmentId: line.equipmentId ?? null,
+      freeText: line.freeText ?? null,
+      qty: line.qty,
+    }));
+
+    const mergedEquipmentLines = mergeEquipmentLines([...(draft.equipmentLines ?? []), ...currentEquipment]);
+
+    const currentAdjustments = adjustments;
+    const mergedAdjustments = Array.from(
+      new Map(
+        [...(draft.adjustments ?? []), ...currentAdjustments]
+          .filter((adj) => !!adj.code?.trim())
+          .map((adj) => [adj.code.trim().toLowerCase(), { code: adj.code.trim() }])
+      ).values()
+    );
+
+    return {
+      ...draft,
+      equipmentLines: mergedEquipmentLines,
+      adjustments: mergedAdjustments,
+    } satisfies EstimateDraftInput;
+  }
+
   function applyLocalDraftToScreen(draft: EstimateDraftInput) {
     if (draft.jobId) {
       setJobId(draft.jobId);
@@ -564,6 +601,28 @@ export function EstimateBuilderScreen() {
 
     syncEstimate(updatedEstimate);
     setMessage(successMessage);
+  }
+
+  async function repriceAndSyncEstimate(estimateIdToReprice: string) {
+    const repriced = await api.repriceEstimate(estimateIdToReprice);
+    setTotals(repriced.totals);
+    setEquipmentLines(
+      repriced.equipmentLines.map((line) => ({
+        equipmentId: line.equipmentId ?? null,
+        freeText: line.freeText ?? null,
+        qty: line.qty,
+        unitPrice: line.unitPrice ?? defaultUnitPriceForEquipmentId(line.equipmentId ?? null),
+      }))
+    );
+    if (repriced.labor) {
+      setLaborJobType(repriced.labor.jobType ?? laborJobType);
+      setLaborLevel(repriced.labor.level ?? laborLevel);
+      setLaborHoursChosen(
+        repriced.labor.hoursChosen === undefined || repriced.labor.hoursChosen === null
+          ? laborHoursChosen
+          : String(repriced.labor.hoursChosen)
+      );
+    }
   }
 
   function applyDraftLocally(draft: EstimateDraftInput, successMessage: string) {
@@ -636,10 +695,14 @@ export function EstimateBuilderScreen() {
     try {
       const aiResult = await api.aiVoiceToDraft(file);
       const enhancedDraft = enhanceAiDraftWithCatalog(aiResult.draft, aiResult.transcript);
+      const mergedDraft = mergeAiDraftWithCurrent(enhancedDraft);
       if (hasServerEstimate) {
-        await applyDraft(enhancedDraft, 'AI voice draft applied to estimate.');
+        const serverEstimateId = estimateId.trim();
+        await applyDraft(mergedDraft, 'AI voice draft applied to estimate.');
+        await repriceAndSyncEstimate(serverEstimateId);
+        setMessage('AI voice draft applied and totals recalculated.');
       } else {
-        applyDraftLocally(enhancedDraft, 'AI voice draft applied to local draft.');
+        applyDraftLocally(mergedDraft, 'AI voice draft applied to local draft.');
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to apply AI voice draft');
@@ -655,10 +718,14 @@ export function EstimateBuilderScreen() {
     try {
       const aiResult = await api.aiNotesImageToDraft(file);
       const enhancedDraft = enhanceAiDraftWithCatalog(aiResult.draft, aiResult.extractedText);
+      const mergedDraft = mergeAiDraftWithCurrent(enhancedDraft);
       if (hasServerEstimate) {
-        await applyDraft(enhancedDraft, 'AI notes draft applied to estimate.');
+        const serverEstimateId = estimateId.trim();
+        await applyDraft(mergedDraft, 'AI notes draft applied to estimate.');
+        await repriceAndSyncEstimate(serverEstimateId);
+        setMessage('AI notes draft applied and totals recalculated.');
       } else {
-        applyDraftLocally(enhancedDraft, 'AI notes draft applied to local draft.');
+        applyDraftLocally(mergedDraft, 'AI notes draft applied to local draft.');
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to apply AI notes draft');
@@ -695,25 +762,7 @@ export function EstimateBuilderScreen() {
 
       await api.applyEstimateDraft(estimateId, draft);
 
-      const repriced = await api.repriceEstimate(estimateId);
-      setTotals(repriced.totals);
-      setEquipmentLines(
-        repriced.equipmentLines.map((line) => ({
-          equipmentId: line.equipmentId ?? null,
-          freeText: line.freeText ?? null,
-          qty: line.qty,
-          unitPrice: line.unitPrice ?? defaultUnitPriceForEquipmentId(line.equipmentId ?? null),
-        }))
-      );
-      if (repriced.labor) {
-        setLaborJobType(repriced.labor.jobType ?? laborJobType);
-        setLaborLevel(repriced.labor.level ?? laborLevel);
-        setLaborHoursChosen(
-          repriced.labor.hoursChosen === undefined || repriced.labor.hoursChosen === null
-            ? laborHoursChosen
-            : String(repriced.labor.hoursChosen)
-        );
-      }
+      await repriceAndSyncEstimate(estimateId);
       setMessage('Repriced successfully.');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to reprice estimate');
@@ -749,16 +798,7 @@ export function EstimateBuilderScreen() {
       });
 
       await api.applyEstimateDraft(estimateId, draft);
-      const repriced = await api.repriceEstimate(estimateId);
-      setTotals(repriced.totals);
-      setEquipmentLines(
-        repriced.equipmentLines.map((line) => ({
-          equipmentId: line.equipmentId ?? null,
-          freeText: line.freeText ?? null,
-          qty: line.qty,
-          unitPrice: line.unitPrice ?? defaultUnitPriceForEquipmentId(line.equipmentId ?? null),
-        }))
-      );
+      await repriceAndSyncEstimate(estimateId);
       const finalized = await api.finalizeEstimate(estimateId);
       syncEstimate(finalized);
       setMessage(`Finalized estimate ${finalized.id}`);
@@ -1076,7 +1116,7 @@ export function EstimateBuilderScreen() {
             <View key={`${line.equipmentId ?? line.freeText ?? 'line'}-${index}`} style={styles.equipmentRow}>
               <View style={styles.equipmentLabel}>
                 <Text variant="bodySmall" style={styles.textRow}>
-                  {index + 1}. {line.equipmentId ?? line.freeText ?? 'Unknown item'}
+                  {index + 1}. {equipmentDisplayLabel(line.equipmentId, line.freeText)}
                 </Text>
                 <View style={styles.equipmentEditRow}>
                   <TextInput
