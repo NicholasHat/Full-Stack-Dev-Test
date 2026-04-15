@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Linking, Share, StyleSheet, View } from 'react-native';
 import { RouteProp, useRoute } from '@react-navigation/native';
 import { Button, HelperText, Text } from 'react-native-paper';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 
 import { api, Estimate } from '../api/client';
@@ -13,10 +13,22 @@ import { appColors } from '../theme/uiStyles';
 
 // Review estimate details before generating pdf or sharing
 
+const PDF_DOWNLOAD_TIMEOUT_MS = 30000;
+
+async function downloadPdfWithTimeout(pdfUrl: string, fileUri: string) {
+  return await Promise.race([
+    FileSystem.downloadAsync(pdfUrl, fileUri),
+    new Promise<never>((_, reject) => {
+      setTimeout(() => reject(new Error('Timed out while downloading PDF')), PDF_DOWNLOAD_TIMEOUT_MS);
+    }),
+  ]);
+}
+
 export function EstimateReviewScreen() {
   const route = useRoute<RouteProp<RootStackParamList, 'EstimateReview'>>();
   const [estimate, setEstimate] = useState<Estimate | null>(null);
   const [loading, setLoading] = useState(false);
+  const [opening, setOpening] = useState(false);
   const [sharing, setSharing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -39,10 +51,16 @@ export function EstimateReviewScreen() {
   }, [route.params.estimateId]);
 
   async function onOpenPdf() {
+    setOpening(true);
+    setError(null);
     try {
-      await Linking.openURL(pdfUrl);
+      const fileUri = `${FileSystem.cacheDirectory}estimate-${route.params.estimateId}.pdf`;
+      const downloaded = await downloadPdfWithTimeout(pdfUrl, fileUri);
+      await Linking.openURL(downloaded.uri);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to open PDF');
+    } finally {
+      setOpening(false);
     }
   }
 
@@ -51,7 +69,7 @@ export function EstimateReviewScreen() {
     setError(null);
     try {
       const fileUri = `${FileSystem.cacheDirectory}estimate-${route.params.estimateId}.pdf`;
-      const downloaded = await FileSystem.downloadAsync(pdfUrl, fileUri);
+      const downloaded = await downloadPdfWithTimeout(pdfUrl, fileUri);
 
       const canShareFile = await Sharing.isAvailableAsync();
       if (canShareFile) {
@@ -93,7 +111,7 @@ export function EstimateReviewScreen() {
         <Text style={styles.text}>{pdfUrl}</Text>
       </View>
 
-      <Button mode="contained" onPress={onOpenPdf} loading={loading} disabled={loading || sharing}>
+      <Button mode="contained" onPress={onOpenPdf} loading={loading || opening} disabled={loading || sharing || opening}>
         Open PDF
       </Button>
       <View style={styles.mt8} />

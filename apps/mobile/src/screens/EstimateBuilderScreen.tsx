@@ -434,7 +434,14 @@ export function EstimateBuilderScreen() {
       syncEstimate(finalized);
       setMessage(`Finalized estimate ${finalized.id}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to finalize estimate');
+      const message = err instanceof Error ? err.message : 'Failed to finalize estimate';
+      if (message.includes('Finalized estimate cannot be updated')) {
+        setMessage(`Estimate ${estimateId} is already finalized.`);
+        setError(null);
+        return;
+      }
+
+      setError(message);
     } finally {
       setBusy(false);
     }

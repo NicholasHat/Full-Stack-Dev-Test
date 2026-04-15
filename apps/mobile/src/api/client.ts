@@ -1,6 +1,118 @@
 // API client
 
+import Constants from 'expo-constants';
+import { NativeModules } from 'react-native';
+
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL ?? 'http://localhost:8000';
+const REQUEST_TIMEOUT_MS = 15000;
+const UPLOAD_TIMEOUT_MS = 60000;
+
+let lastWorkingBaseUrl = API_BASE_URL;
+
+function normalizeBaseUrl(value: string) {
+  return value.replace(/\/$/, '');
+}
+
+function isLoopbackBaseUrl(value: string) {
+  try {
+    const hostname = new URL(value).hostname;
+    return hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1';
+  } catch {
+    return false;
+  }
+}
+
+function tryGetHostFromScriptUrl() {
+  try {
+    const scriptUrl = (NativeModules as { SourceCode?: { scriptURL?: string } })?.SourceCode?.scriptURL;
+    if (!scriptUrl) {
+      return null;
+    }
+
+    const normalized = scriptUrl.startsWith('exp://')
+      ? scriptUrl.replace(/^exp:\/\//, 'http://')
+      : scriptUrl;
+    return new URL(normalized).hostname;
+  } catch {
+    return null;
+  }
+}
+
+function tryGetHostFromExpoConstants() {
+  try {
+    const hostUri =
+      (Constants.expoConfig as { hostUri?: string } | undefined)?.hostUri ??
+      (Constants.expoGoConfig as { hostUri?: string } | undefined)?.hostUri ??
+      (Constants.manifest2 as { extra?: { expoClient?: { hostUri?: string } } } | undefined)?.extra
+        ?.expoClient?.hostUri;
+
+    if (!hostUri) {
+      return null;
+    }
+
+    const normalized = hostUri.startsWith('exp://') ? hostUri.replace(/^exp:\/\//, 'http://') : hostUri;
+    return new URL(normalized).hostname;
+  } catch {
+    return null;
+  }
+}
+
+function buildBaseUrlCandidates() {
+  const candidates: string[] = [];
+
+  const envBase = normalizeBaseUrl(API_BASE_URL);
+  candidates.push(envBase);
+
+  const hostFromScript = tryGetHostFromScriptUrl();
+  if (hostFromScript && hostFromScript !== 'localhost' && hostFromScript !== '127.0.0.1') {
+    candidates.push(`http://${hostFromScript}:8000`);
+  }
+
+  const hostFromConstants = tryGetHostFromExpoConstants();
+  if (hostFromConstants && hostFromConstants !== 'localhost' && hostFromConstants !== '127.0.0.1') {
+    candidates.push(`http://${hostFromConstants}:8000`);
+  }
+
+  candidates.push('http://127.0.0.1:8000');
+  candidates.push('http://localhost:8000');
+
+  return [...new Set(candidates)];
+}
+
+function getPreferredBaseUrl() {
+  const candidates = buildBaseUrlCandidates();
+  const stableCandidate = candidates.find((value) => !isLoopbackBaseUrl(value));
+
+  if (lastWorkingBaseUrl) {
+    return lastWorkingBaseUrl;
+  }
+
+  return stableCandidate ?? lastWorkingBaseUrl;
+}
+
+function isNetworkError(error: unknown) {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  const message = error.message.toLowerCase();
+  return (
+    message.includes('network request failed') ||
+    message.includes('failed to fetch') ||
+    message.includes('timed out') ||
+    message.includes('aborted')
+  );
+}
+
+async function fetchWithTimeout(url: string, init?: RequestInit, timeoutMs = REQUEST_TIMEOUT_MS) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
 
 export type Customer = {
   id: string;
@@ -178,34 +290,86 @@ export type UploadFileInput = {
 };
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    headers: { 'Content-Type': 'application/json', ...(init?.headers ?? {}) },
-    ...init,
-  });
+  const bases = [lastWorkingBaseUrl, ...buildBaseUrlCandidates()].filter(
+    (value, index, array) => array.indexOf(value) === index
+  );
+  const failures: string[] = [];
 
-  if (!response.ok) {
-    const message = await response.text();
-    throw new Error(message || `HTTP ${response.status}`);
+  for (const baseUrl of bases) {
+    try {
+      const response = await fetchWithTimeout(
+        `${baseUrl}${path}`,
+        {
+          headers: { 'Content-Type': 'application/json', ...(init?.headers ?? {}) },
+          ...init,
+        },
+        REQUEST_TIMEOUT_MS,
+      );
+
+      if (!response.ok) {
+        const message = await response.text();
+        throw new Error(message || `HTTP ${response.status}`);
+      }
+
+      lastWorkingBaseUrl = baseUrl;
+      return response.json() as Promise<T>;
+    } catch (error) {
+      if (!isNetworkError(error)) {
+        throw error;
+      }
+
+      failures.push(`${baseUrl}: ${error instanceof Error ? error.message : 'network error'}`);
+    }
   }
 
-  return response.json() as Promise<T>;
+  throw new Error(
+    `Network request failed for ${path}. Tried: ${failures.join(' | ') || 'no endpoints available'}`
+  );
 }
 
 async function upload<T>(path: string, file: UploadFileInput): Promise<T> {
   const formData = new FormData();
-  formData.append('file', file as unknown as Blob);
+  formData.append('file', {
+    uri: file.uri,
+    name: file.name,
+    type: file.type,
+  } as never);
 
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    method: 'POST',
-    body: formData,
-  });
+  const bases = [lastWorkingBaseUrl, ...buildBaseUrlCandidates()].filter(
+    (value, index, array) => array.indexOf(value) === index
+  );
+  const failures: string[] = [];
 
-  if (!response.ok) {
-    const message = await response.text();
-    throw new Error(message || `HTTP ${response.status}`);
+  for (const baseUrl of bases) {
+    try {
+      const response = await fetchWithTimeout(
+        `${baseUrl}${path}`,
+        {
+          method: 'POST',
+          body: formData,
+        },
+        UPLOAD_TIMEOUT_MS,
+      );
+
+      if (!response.ok) {
+        const message = await response.text();
+        throw new Error(message || `HTTP ${response.status}`);
+      }
+
+      lastWorkingBaseUrl = baseUrl;
+      return response.json() as Promise<T>;
+    } catch (error) {
+      if (!isNetworkError(error)) {
+        throw error;
+      }
+
+      failures.push(`${baseUrl}: ${error instanceof Error ? error.message : 'network error'}`);
+    }
   }
 
-  return response.json() as Promise<T>;
+  throw new Error(
+    `Network upload failed for ${path}. Tried: ${failures.join(' | ') || 'no endpoints available'}`
+  );
 }
 
 export const api = {
@@ -264,7 +428,10 @@ export const api = {
       '/admin/reset-demo-data',
       { method: 'POST' }
     ),
-  estimatePdfUrl: (estimateId: string) => `${API_BASE_URL}/estimates/${encodeURIComponent(estimateId)}/pdf`,
+  estimatePdfUrl: (estimateId: string) => {
+    const baseUrl = getPreferredBaseUrl();
+    return `${baseUrl ?? API_BASE_URL}/estimates/${encodeURIComponent(estimateId)}/pdf`;
+  },
   getLaborRates: () => request<LaborRate[]>('/catalog/labor-rates'),
   getEquipment: () => request<EquipmentCatalogItem[]>('/catalog/equipment'),
   getBundles: () => request<Bundle[]>('/catalog/bundles'),
