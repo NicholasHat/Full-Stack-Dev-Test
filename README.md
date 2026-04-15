@@ -44,6 +44,54 @@ On the backend, I used FastAPI for a clean and fast API layer with deterministic
 
 With more time, I would improve adjustment UX (for example sliders and guided controls instead of pure typing), fully deploy production infrastructure, and add accounts/roles with admin controls for scoped data access and targeted data reset tools. I would also add a desktop web app or website for office workflows so admin users can manage customers/jobs/estimates and connect estimate lifecycle data to spreadsheet or reporting pipelines for analysis, like better visibility into on-site time from creation and finalization timestamps. 
 
+**Video Demo** https://youtu.be/FhfAC9YjqTs
+
+## Run on iOS Simulator and iPhone
+
+### Prerequisites
+
+- macOS with Xcode + iOS Simulator
+- Node.js + npm
+- Project Python venv at `.venv`
+
+### 1) Start API (Terminal A)
+
+From repo root:
+
+```bash
+/Users/nicholastweedie/Desktop/Full-Stack-Dev-Test/.venv/bin/python -m uvicorn --app-dir /Users/nicholastweedie/Desktop/Full-Stack-Dev-Test/apps/api app.main:app --host 0.0.0.0 --port 8000
+```
+
+### 2) Run on iOS Simulator (Terminal B)
+
+```bash
+cd apps/mobile
+npm install
+npx expo start --localhost --clear
+```
+
+Press `i` in the Expo terminal to open iOS Simulator.
+
+Use API base URL:
+
+- `http://127.0.0.1:8000` (preferred)
+
+### 3) Run on iPhone (Expo Go)
+
+Set [apps/mobile/.env](apps/mobile/.env):
+
+```bash
+EXPO_PUBLIC_API_BASE_URL=http://<YOUR_MAC_LAN_IP>:8000
+```
+
+Then start Expo in LAN mode:
+
+```bash
+cd apps/mobile
+npx expo start --lan --clear
+```
+
+Scan the QR in Expo Go on iPhone.
 
 ## HVAC Estimator Demo Plan
 
@@ -133,52 +181,6 @@ With more time, I would improve adjustment UX (for example sliders and guided co
 - Validate AI output with Pydantic; retry on invalid output
 - AI never computes totals
 
-## Run on iOS Simulator and iPhone
-
-### Prerequisites
-
-- macOS with Xcode + iOS Simulator
-- Node.js + npm
-- Project Python venv at `.venv`
-
-### 1) Start API (Terminal A)
-
-From repo root:
-
-```bash
-/Users/nicholastweedie/Desktop/Full-Stack-Dev-Test/.venv/bin/python -m uvicorn --app-dir /Users/nicholastweedie/Desktop/Full-Stack-Dev-Test/apps/api app.main:app --host 0.0.0.0 --port 8000
-```
-
-### 2) Run on iOS Simulator (Terminal B)
-
-```bash
-cd apps/mobile
-npm install
-npx expo start --localhost --clear
-```
-
-Press `i` in the Expo terminal to open iOS Simulator.
-
-Use API base URL:
-
-- `http://127.0.0.1:8000` (preferred)
-
-### 3) Run on iPhone (Expo Go)
-
-Set [apps/mobile/.env](apps/mobile/.env):
-
-```bash
-EXPO_PUBLIC_API_BASE_URL=http://<YOUR_MAC_LAN_IP>:8000
-```
-
-Then start Expo in LAN mode:
-
-```bash
-cd apps/mobile
-npx expo start --lan --clear
-```
-
-Scan the QR in Expo Go on iPhone.
 
 
 
