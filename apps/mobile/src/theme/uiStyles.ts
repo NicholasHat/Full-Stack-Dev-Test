@@ -6,12 +6,15 @@ export const appColors = {
   border: '#30363D',
   text: '#C9D1D9',
   muted: '#8B949E',
+  link: '#58A6FF',
   success: '#3FB950',
+  purple: '#A371F7',
+  danger: '#F85149',
 };
 
 export const uiStyles = StyleSheet.create({
   section: {
-    gap: 8,
+    gap: 12,
   },
   sectionTitle: {
     color: appColors.text,

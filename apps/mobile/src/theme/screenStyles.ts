@@ -7,10 +7,10 @@ export const screenStyles = {
   },
   content: {
     padding: 16,
-    gap: 12,
+    gap: 16,
   },
   card: {
-    borderRadius: 12,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: appColors.border,
     backgroundColor: appColors.canvas,
@@ -18,7 +18,7 @@ export const screenStyles = {
     gap: 10,
   },
   listCard: {
-    borderRadius: 12,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: appColors.border,
     backgroundColor: appColors.canvas,
