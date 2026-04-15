@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
-import { Button, HelperText, Text, TextInput } from 'react-native-paper';
+import { Button, HelperText, Searchbar, Text, TextInput } from 'react-native-paper';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
-import { api } from '../api/client';
+import { api, Customer } from '../api/client';
 import { RootStackParamList } from '../navigation/RootNavigator';
 import { screenStyles } from '../theme/screenStyles';
 import { appColors } from '../theme/uiStyles';
@@ -17,6 +17,8 @@ export function JobEditScreen() {
   const jobId = route.params?.jobId;
 
   const [customerId, setCustomerId] = useState('');
+  const [customerSearch, setCustomerSearch] = useState('');
+  const [customers, setCustomers] = useState<Customer[]>([]);
   const [address, setAddress] = useState('');
   const [scheduledDate, setScheduledDate] = useState('');
   const [status, setStatus] = useState('open');
@@ -26,6 +28,35 @@ export function JobEditScreen() {
   const [error, setError] = useState<string | null>(null);
 
   const title = useMemo(() => (jobId ? `Edit ${jobId}` : 'New Job'), [jobId]);
+
+  const filteredCustomers = useMemo(() => {
+    const q = customerSearch.trim().toLowerCase();
+    if (!q) {
+      return customers.slice(0, 5);
+    }
+
+    return customers
+      .filter(
+        (customer) =>
+          customer.id.toLowerCase().includes(q) ||
+          (customer.name ?? '').toLowerCase().includes(q) ||
+          (customer.address ?? '').toLowerCase().includes(q)
+      )
+      .slice(0, 5);
+  }, [customerSearch, customers]);
+
+  useEffect(() => {
+    async function loadCustomers() {
+      try {
+        const customerItems = await api.listCustomers();
+        setCustomers(customerItems);
+      } catch {
+        // Keep form usable even if customer preload fails.
+      }
+    }
+
+    loadCustomers();
+  }, []);
 
   useEffect(() => {
     if (!jobId) {
@@ -101,6 +132,24 @@ export function JobEditScreen() {
           {error ?? ''}
         </HelperText>
         <TextInput label="Customer ID" value={customerId} onChangeText={setCustomerId} mode="outlined" />
+        <Searchbar
+          placeholder="Search customer by name"
+          value={customerSearch}
+          onChangeText={setCustomerSearch}
+        />
+        {customerSearch.trim().length > 0 && filteredCustomers.map((customer) => (
+          <Button
+            key={customer.id}
+            mode="text"
+            compact
+            onPress={() => {
+              setCustomerId(customer.id);
+              setCustomerSearch('');
+            }}
+          >
+            {customer.name || customer.id} · {customer.id}
+          </Button>
+        ))}
         <TextInput label="Address" value={address} onChangeText={setAddress} mode="outlined" />
         <TextInput
           label="Scheduled Date"
